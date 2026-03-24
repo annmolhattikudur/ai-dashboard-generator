@@ -437,7 +437,7 @@ def generate_metadata():
 
     with open(TABLE_REGISTRY_PATH, 'w', encoding='utf-8') as f:
         json.dump(table_registry, f, indent=2, ensure_ascii=False)
-    print(f"  ✓ Saved {TABLE_REGISTRY_PATH}")
+    print(f"  [OK] Saved {TABLE_REGISTRY_PATH}")
 
     # ── data_dictionary.json ──
     print("Generating data_dictionary.json...")
@@ -470,7 +470,7 @@ def generate_metadata():
 
     with open(DATA_DICTIONARY_PATH, 'w', encoding='utf-8') as f:
         json.dump(data_dictionary, f, indent=2, ensure_ascii=False)
-    print(f"  ✓ Saved {DATA_DICTIONARY_PATH}")
+    print(f"  [OK] Saved {DATA_DICTIONARY_PATH}")
 
     # ── relationships.json ──
     print("Generating relationships.json...")
@@ -504,20 +504,20 @@ def generate_metadata():
 
     with open(RELATIONSHIPS_PATH, 'w', encoding='utf-8') as f:
         json.dump(relationships_data, f, indent=2, ensure_ascii=False)
-    print(f"  ✓ Saved {RELATIONSHIPS_PATH} ({len(relationships_data['relationships'])} relationships)")
+    print(f"  [OK] Saved {RELATIONSHIPS_PATH} ({len(relationships_data['relationships'])} relationships)")
 
     # ── use_case_log.json ──
     print("Generating use_case_log.json...")
     use_case_log = {"use_cases": []}
     with open(USE_CASE_LOG_PATH, 'w', encoding='utf-8') as f:
         json.dump(use_case_log, f, indent=2)
-    print(f"  ✓ Saved {USE_CASE_LOG_PATH}")
+    print(f"  [OK] Saved {USE_CASE_LOG_PATH}")
 
     # ── domain_knowledge.json ──
     print("Generating domain_knowledge.json...")
     with open(DOMAIN_KNOWLEDGE_PATH, 'w', encoding='utf-8') as f:
         json.dump(DOMAIN_KNOWLEDGE, f, indent=2, ensure_ascii=False)
-    print(f"  ✓ Saved {DOMAIN_KNOWLEDGE_PATH}")
+    print(f"  [OK] Saved {DOMAIN_KNOWLEDGE_PATH}")
 
     conn.close()
 

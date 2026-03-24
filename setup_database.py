@@ -114,12 +114,12 @@ def main():
         try:
             summary = load_csv_to_sqlite(csv_path, conn)
             summaries.append(summary)
-            print(f"    ✓ Table: {summary['table_name']}")
+            print(f"    [OK] Table: {summary['table_name']}")
             print(f"      Rows: {summary['row_count']:,}  |  Columns: {summary['column_count']}")
             if summary['indexed_columns']:
                 print(f"      Indexed: {', '.join(summary['indexed_columns'])}")
         except Exception as e:
-            print(f"    ✗ FAILED: {e}")
+            print(f"    [FAILED]: {e}")
 
     conn.close()
 
