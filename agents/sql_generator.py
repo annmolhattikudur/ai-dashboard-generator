@@ -156,6 +156,43 @@ def _build_system_prompt(
             if pattern:
                 metric_patterns.append(f"  -- {metric_name}\n  {pattern}")
 
+    # Order status filter rule
+    order_status_rule = domain.get("order_status_filter_rule", {})
+    order_status_block = (
+        f"CRITICAL: {order_status_rule.get('description', '')}\n"
+        f"  SQL filter to always use: {order_status_rule.get('sql_filter', '')}"
+        if order_status_rule else ""
+    )
+
+    # Growth calculation rules
+    growth_rules = domain.get("growth_calculation_rules", {})
+    growth_lines = []
+    if growth_rules:
+        growth_lines.append(growth_rules.get("description", ""))
+        growth_lines.append(f"Growth formula: {growth_rules.get('growth_formula', '')}")
+        for period_type, info in growth_rules.get("time_period_types", {}).items():
+            growth_lines.append(f"\n[{period_type}]")
+            growth_lines.append(f"  {info.get('description', '')}")
+            growth_lines.append(f"  Example: {info.get('example', '')}")
+            if info.get("sql_pattern"):
+                growth_lines.append(f"  Reference SQL:\n  {info['sql_pattern']}")
+        dim_growth = growth_rules.get("dimensional_growth", {})
+        if dim_growth:
+            growth_lines.append(f"\n[dimensional_growth]")
+            growth_lines.append(f"  {dim_growth.get('description', '')}")
+            growth_lines.append(f"  Supported dimensions: {', '.join(dim_growth.get('dimensions_supported', []))}")
+            if dim_growth.get("sql_pattern_by_category"):
+                growth_lines.append(f"  By-category SQL reference:\n  {dim_growth['sql_pattern_by_category']}")
+            if dim_growth.get("sql_pattern_by_state"):
+                growth_lines.append(f"  By-state SQL reference:\n  {dim_growth['sql_pattern_by_state']}")
+        assortment_growth = growth_rules.get("assortment_growth", {})
+        if assortment_growth:
+            growth_lines.append(f"\n[assortment_growth]")
+            growth_lines.append(f"  {assortment_growth.get('description', '')}")
+            if assortment_growth.get("sql_pattern_monthly"):
+                growth_lines.append(f"  Monthly SQL reference:\n  {assortment_growth['sql_pattern_monthly']}")
+    growth_block = "\n".join(growth_lines) if growth_lines else "  (no growth rules)"
+
     schema_block = "\n\n".join(schema_lines)
     joins_block = "\n".join(join_lines) if join_lines else "  (determine joins from schema)"
     patterns_block = "\n".join(metric_patterns) if metric_patterns else "  (no specific patterns)"
@@ -171,11 +208,19 @@ Generate a single, correct SQLite SELECT query to answer the user's question.
 
 {joins_block}
 
+## ORDER STATUS FILTER — ALWAYS APPLY
+
+{order_status_block}
+
 ## BUSINESS RULES
 
 {rules}
 
-## REFERENCE SQL PATTERNS
+## GROWTH CALCULATION RULES
+
+{growth_block}
+
+## REFERENCE SQL PATTERNS (for non-growth metrics)
 
 {patterns_block}
 
@@ -187,9 +232,11 @@ Generate a single, correct SQLite SELECT query to answer the user's question.
 4. Use ROUND(..., 2) for monetary values
 5. Add a LIMIT clause when returning ranked/top results (default LIMIT 20 unless user specifies)
 6. Always qualify column names with table alias when joining multiple tables
-7. Use strftime('%Y-%m', column) for monthly grouping
+7. Use strftime('%Y-%m', column) for monthly grouping in SQLite
 8. Use COUNT(DISTINCT ...) when counting unique entities
-9. Return ONLY the SQL query — no explanation, no markdown, no code fences
+9. For growth queries: use CTEs (WITH clauses) to compute current and prior period values, then calculate growth_pct
+10. For growth queries returning multiple dimension rows: include columns named current_revenue (or current_<metric>), prior_revenue (or prior_<metric>), and growth_pct
+11. Return ONLY the SQL query — no explanation, no markdown, no code fences
 """
 
 

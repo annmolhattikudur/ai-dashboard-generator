@@ -49,54 +49,203 @@ from powerbi.export_handler import (
 
 st.markdown("""
 <style>
-/* Sidebar brand colour */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* ── Global ── */
+html, body, [class*="css"] {
+    font-family: 'Inter', sans-serif;
+}
+.stApp {
+    background: linear-gradient(160deg, #EEF2F7 0%, #E8EDF5 100%);
+}
+
+/* ── Reduce Streamlit's default paddings ── */
+.block-container {
+    padding-top: 1.5rem !important;
+    padding-bottom: 1.5rem !important;
+}
+section[data-testid="stSidebar"] > div:first-child {
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+}
+/* Tighten vertical gap between Streamlit blocks */
+[data-testid="stVerticalBlock"] > div { gap: 0.5rem !important; }
+
+/* ── Sidebar ── */
 [data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #0D2137 0%, #1A4A6E 100%);
+    background: linear-gradient(180deg, #0B1F3A 0%, #0D2B50 55%, #0E3D6B 100%);
+    border-right: 1px solid rgba(255,255,255,0.06);
 }
-[data-testid="stSidebar"] * {
-    color: #E8F4FD !important;
+[data-testid="stSidebar"] * { color: #D6E8F8 !important; }
+
+/* Sidebar brand strip */
+.sidebar-brand {
+    font-size: 14px;
+    font-weight: 700;
+    color: #ffffff !important;
+    letter-spacing: 0.3px;
+    padding: 0 2px 10px 2px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    margin-bottom: 4px;
 }
-[data-testid="stSidebar"] .stRadio label {
-    font-size: 15px;
+.sidebar-brand span { color: #4EAADF !important; }
+
+/* Nav section headings */
+.nav-section {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: #6FA8C8 !important;
+    margin: 14px 0 5px 0;
+    padding-left: 2px;
+}
+
+/* Nav buttons */
+[data-testid="stSidebar"] .stButton > button {
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    color: #C8DFF2 !important;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 13.5px;
     font-weight: 500;
+    margin-bottom: 2px;
+    transition: background 0.15s ease;
+    min-height: unset !important;
+    height: auto !important;
+    line-height: 1.4 !important;
+}
+[data-testid="stSidebar"] .stButton > button:hover {
+    background: rgba(255,255,255,0.09) !important;
+    color: #ffffff !important;
+    border: none;
+}
+[data-testid="stSidebar"] .stButton > button[kind="primary"] {
+    background: rgba(255,255,255,0.13) !important;
+    color: #ffffff !important;
+    border-left: 3px solid #4EAADF !important;
+    font-weight: 600;
+}
+/* Tighten gap between nav buttons only */
+[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div { gap: 0.1rem !important; }
+
+/* Sidebar divider */
+.sidebar-divider {
+    border: none;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    margin: 12px 0;
 }
 
-/* Main header */
+/* Sidebar info text */
+.sidebar-info {
+    font-size: 11.5px;
+    color: #7AAEC8 !important;
+    line-height: 1.6;
+    margin: 0;
+}
+.sidebar-info a { color: #4EAADF !important; }
+
+/* ── Main header ── */
 .app-header {
-    background: linear-gradient(90deg, #0D2137 0%, #1A6EAF 100%);
-    padding: 16px 24px;
-    border-radius: 8px;
-    margin-bottom: 20px;
+    background: linear-gradient(135deg, #0B1F3A 0%, #0D3B6E 50%, #1565C0 100%);
+    padding: 16px 26px;
+    border-radius: 10px;
+    margin-bottom: 14px;
+    box-shadow: 0 4px 20px rgba(11, 31, 58, 0.24);
 }
-.app-header h1 { color: white; margin: 0; font-size: 26px; }
-.app-header p  { color: #A8D4F5; margin: 4px 0 0 0; font-size: 14px; }
+.app-header h1 {
+    color: white;
+    margin: 0;
+    font-size: 25px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+}
+.app-header p {
+    color: #90C4E8;
+    margin: 4px 0 0 0;
+    font-size: 13.5px;
+    font-weight: 400;
+}
 
-/* Confidence badges */
-.badge-high   { background:#1E8449; color:white; padding:4px 12px;
-                border-radius:12px; font-weight:600; font-size:13px; }
-.badge-medium { background:#D4AC0D; color:white; padding:4px 12px;
-                border-radius:12px; font-weight:600; font-size:13px; }
-.badge-low    { background:#C0392B; color:white; padding:4px 12px;
-                border-radius:12px; font-weight:600; font-size:13px; }
+/* ── Retail banner image ── */
+[data-testid="stImage"] img {
+    max-height: 170px;
+    object-fit: cover;
+    object-position: center;
+    width: 100%;
+    border-radius: 8px;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+}
 
-/* Section cards */
+/* ── Content cards (expanders) ── */
+[data-testid="stExpander"] {
+    background: white;
+    border-radius: 10px !important;
+    border: 1px solid #E2E8F0 !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    margin-bottom: 8px;
+}
+
+/* ── Confidence badges ── */
+.badge-high   { background: linear-gradient(90deg,#1B6B3A,#27AE60); color:white;
+                padding:4px 12px; border-radius:20px; font-weight:600; font-size:12px;
+                box-shadow: 0 2px 6px rgba(39,174,96,0.3); }
+.badge-medium { background: linear-gradient(90deg,#B7770D,#F0AC1C); color:white;
+                padding:4px 12px; border-radius:20px; font-weight:600; font-size:12px;
+                box-shadow: 0 2px 6px rgba(240,172,28,0.3); }
+.badge-low    { background: linear-gradient(90deg,#922B21,#E74C3C); color:white;
+                padding:4px 12px; border-radius:20px; font-weight:600; font-size:12px;
+                box-shadow: 0 2px 6px rgba(231,76,60,0.3); }
+
+/* ── Section cards ── */
 .section-card {
-    background: #F8FBFF;
-    border: 1px solid #D6E8F8;
-    border-radius: 8px;
-    padding: 16px;
-    margin-bottom: 16px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+    padding: 14px 18px;
+    margin-bottom: 10px;
+    border: 1px solid #EBF0F7;
 }
 
-/* Footer */
+/* ── Primary buttons (main CTA) ── */
+.stButton > button[kind="primary"] {
+    background: linear-gradient(135deg, #1565C0, #1976D2);
+    border: none;
+    border-radius: 8px;
+    padding: 9px 22px;
+    font-weight: 600;
+    font-size: 14px;
+    box-shadow: 0 3px 10px rgba(21,101,192,0.35);
+    transition: all 0.2s ease;
+}
+.stButton > button[kind="primary"]:hover {
+    box-shadow: 0 5px 16px rgba(21,101,192,0.45);
+    transform: translateY(-1px);
+}
+
+/* ── Metrics ── */
+[data-testid="stMetric"] {
+    background: white;
+    border-radius: 10px;
+    padding: 10px 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    border: 1px solid #EBF0F7;
+}
+
+/* ── Footer ── */
 .footer {
     text-align: center;
-    color: #888;
+    color: #94A3B8;
     font-size: 12px;
-    margin-top: 40px;
-    padding-top: 16px;
-    border-top: 1px solid #eee;
+    margin-top: 28px;
+    padding-top: 14px;
+    border-top: 1px solid #E2E8F0;
 }
+.footer a { color: #1565C0; text-decoration: none; font-weight: 500; }
+.footer a:hover { text-decoration: underline; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -107,7 +256,7 @@ st.markdown("""
 
 def _init_state():
     defaults = {
-        "page": "Quick Insights",
+        "page": "⚡ Quick Insights",
         # Path A state
         "qa_result": None,
         "qa_question": "",
@@ -166,10 +315,15 @@ def _run_query(question: str, override_tables: list | None = None) -> dict:
 
 st.markdown("""
 <div class="app-header">
-  <h1>📊 AI Dashboard Generator — Proof of Concept</h1>
+  <h1>📊 AI Dashboard Generator</h1>
   <p>Natural Language to Insights — No SQL or DAX Knowledge Required</p>
 </div>
 """, unsafe_allow_html=True)
+
+st.image(
+    str(ROOT / "Background_Image" / "Retail_Image.png"),
+    use_container_width=True,
+)
 
 
 # ─────────────────────────────────────────────
@@ -177,25 +331,45 @@ st.markdown("""
 # ─────────────────────────────────────────────
 
 with st.sidebar:
-    st.markdown("## Navigation")
-    page = st.radio(
-        "",
-        ["⚡ Quick Insights", "📊 Power BI Builder", "📚 Data Catalog",
-         "🔄 Feedback & Learning", "💡 Example Queries"],
-        index=["⚡ Quick Insights", "📊 Power BI Builder", "📚 Data Catalog",
-               "🔄 Feedback & Learning", "💡 Example Queries"].index(
-                   st.session_state.get("page", "⚡ Quick Insights")
-               ),
-        key="nav_radio",
+    st.markdown(
+        '<p class="sidebar-brand">📊 AI Dashboard &nbsp;<span>Generator</span></p>',
+        unsafe_allow_html=True,
     )
-    st.session_state["page"] = page
 
-    st.markdown("---")
-    st.markdown("**Dataset**")
-    st.markdown("Olist Brazilian E-Commerce  \n~100k orders · 8 tables · 2016–2018")
-    st.markdown("---")
-    st.markdown("**Architecture**")
-    st.markdown("Agent 1 · Table Recommender  \nAgent 2 · SQL Generator  \nAgent 3 · Viz Recommender  \nOrchestrator · Coordinates all")
+    # ── Group 1: Get Insights & Generate Visualizations ──
+    st.markdown('<p class="nav-section">Get Insights &amp; Generate Visualizations</p>', unsafe_allow_html=True)
+    for _label in ["⚡ Quick Insights", "📊 Power BI Builder"]:
+        _btn_type = "primary" if st.session_state["page"] == _label else "secondary"
+        if st.button(_label, key=f"nav_{_label}", use_container_width=True, type=_btn_type):
+            st.session_state["page"] = _label
+            st.rerun()
+
+    # ── Group 2: Additional Resources ──
+    st.markdown('<p class="nav-section">Additional Resources</p>', unsafe_allow_html=True)
+    for _label in ["📚 Data Catalog", "🔄 Feedback & Learning", "💡 Example Queries"]:
+        _btn_type = "primary" if st.session_state["page"] == _label else "secondary"
+        if st.button(_label, key=f"nav_{_label}", use_container_width=True, type=_btn_type):
+            st.session_state["page"] = _label
+            st.rerun()
+
+    st.markdown('<hr class="sidebar-divider">', unsafe_allow_html=True)
+    st.markdown('<p class="nav-section">Dataset</p>', unsafe_allow_html=True)
+    st.markdown(
+        '<p class="sidebar-info">Olist Brazilian E-Commerce &nbsp;·&nbsp; ~100k orders &nbsp;·&nbsp; 8 tables &nbsp;·&nbsp; 2016–2018 &nbsp;·&nbsp; '
+        '<a href="https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce" target="_blank">Kaggle ↗</a></p>',
+        unsafe_allow_html=True,
+    )
+    st.markdown('<hr class="sidebar-divider">', unsafe_allow_html=True)
+    st.markdown('<p class="nav-section">Architecture</p>', unsafe_allow_html=True)
+    st.markdown(
+        '<p class="sidebar-info">'
+        'Agent 1 · Table Recommender &nbsp;|&nbsp; Agent 2 · SQL Generator &nbsp;|&nbsp; '
+        'Agent 3 · Viz Recommender &nbsp;|&nbsp; Orchestrator · Coordinates all'
+        '</p>',
+        unsafe_allow_html=True,
+    )
+
+page = st.session_state["page"]
 
 
 # ─────────────────────────────────────────────
@@ -203,7 +377,7 @@ with st.sidebar:
 # ─────────────────────────────────────────────
 
 if page == "⚡ Quick Insights":
-    st.subheader("Ask a question — get a chart instantly")
+    st.subheader("Ask a question — get insights instantly")
 
     prefill = st.session_state.get("prefill_question", "") \
         if st.session_state.get("prefill_tab") == "quick" else ""
@@ -357,7 +531,7 @@ elif page == "📊 Power BI Builder":
     question = st.text_area(
         "Describe the Power BI dashboard you want to create:",
         value=prefill,
-        height=100,
+        height=80,
         placeholder=(
             "Example: Create a sales dashboard showing monthly revenue trend by category, "
             "top 10 products by revenue, and a regional performance comparison"
@@ -725,6 +899,10 @@ elif page == "💡 Example Queries":
 # ─────────────────────────────────────────────
 
 st.markdown(
-    '<div class="footer">Powered by Claude AI | RAG + Agentic Architecture</div>',
+    '<div class="footer">'
+    'Powered by Claude AI | RAG + Agentic Architecture | Architected by Annmol Hattikudur'
+    '<br><a href="https://github.com/annmolhattikudur" target="_blank" '
+    'style="color:#1A6EAF;text-decoration:none;">github.com/annmolhattikudur</a>'
+    '</div>',
     unsafe_allow_html=True,
 )

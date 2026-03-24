@@ -1,3 +1,148 @@
 {
-  "use_cases": []
+  "use_cases": [
+    {
+      "id": "uc_001",
+      "user_question": "What are the top 5 product categories by total revenue?",
+      "tables_recommended": [
+        "olist_order_payments_dataset",
+        "olist_orders_dataset",
+        "olist_order_items_dataset",
+        "olist_products_dataset"
+      ],
+      "tables_actually_used": [
+        "olist_order_payments_dataset",
+        "olist_orders_dataset",
+        "olist_order_items_dataset",
+        "olist_products_dataset"
+      ],
+      "sql_generated": "SELECT \n    p.product_category_name as category,\n    ROUND(SUM(pay.payment_value), 2) as total_revenue\nFROM olist_products_dataset p\nINNER JOIN olist_order_items_dataset i ON p.product_id = i.product_id\nINNER JOIN olist_orders_dataset o ON i.order_id = o.order_id\nINNER JOIN olist_order_payments_dataset pay ON o.order_id = pay.order_id\nWHERE o.order_status = 'delivered' -- Only include completed orders\nGROUP BY p.product_category_name\nORDER BY total_revenue DESC\nLIMIT 5;",
+      "sql_used": "SELECT \n    p.product_category_name as category,\n    ROUND(SUM(pay.payment_value), 2) as total_revenue\nFROM olist_products_dataset p\nINNER JOIN olist_order_items_dataset i ON p.product_id = i.product_id\nINNER JOIN olist_orders_dataset o ON i.order_id = o.order_id\nINNER JOIN olist_order_payments_dataset pay ON o.order_id = pay.order_id\nWHERE o.order_status = 'delivered' -- Only include completed orders\nGROUP BY p.product_category_name\nORDER BY total_revenue DESC\nLIMIT 5;",
+      "was_helpful": null,
+      "timestamp": "2026-03-24T02:31:12.204457"
+    },
+    {
+      "id": "uc_002",
+      "user_question": "How many distinct SKUs have been sold till date",
+      "tables_recommended": [
+        "olist_order_items_dataset",
+        "olist_products_dataset"
+      ],
+      "tables_actually_used": [
+        "olist_order_items_dataset",
+        "olist_products_dataset"
+      ],
+      "sql_generated": "SELECT COUNT(DISTINCT product_id) as distinct_skus_sold\nFROM olist_order_items_dataset;",
+      "sql_used": "SELECT COUNT(DISTINCT product_id) as distinct_skus_sold\nFROM olist_order_items_dataset;",
+      "was_helpful": null,
+      "timestamp": "2026-03-24T03:00:33.893023"
+    },
+    {
+      "id": "uc_003",
+      "user_question": "What are the top 10 product categories by total revenue?",
+      "tables_recommended": [
+        "olist_order_payments_dataset",
+        "olist_orders_dataset",
+        "olist_order_items_dataset",
+        "olist_products_dataset"
+      ],
+      "tables_actually_used": [
+        "olist_order_payments_dataset",
+        "olist_orders_dataset",
+        "olist_order_items_dataset",
+        "olist_products_dataset"
+      ],
+      "sql_generated": "SELECT \n    p.product_category_name as category,\n    ROUND(SUM(pay.payment_value), 2) as total_revenue\nFROM olist_products_dataset p\nINNER JOIN olist_order_items_dataset i ON p.product_id = i.product_id\nINNER JOIN olist_orders_dataset o ON i.order_id = o.order_id\nINNER JOIN olist_order_payments_dataset pay ON o.order_id = pay.order_id\nWHERE o.order_status = 'delivered' -- Only include completed orders\nGROUP BY p.product_category_name\nORDER BY total_revenue DESC\nLIMIT 10;",
+      "sql_used": "SELECT \n    p.product_category_name as category,\n    ROUND(SUM(pay.payment_value), 2) as total_revenue\nFROM olist_products_dataset p\nINNER JOIN olist_order_items_dataset i ON p.product_id = i.product_id\nINNER JOIN olist_orders_dataset o ON i.order_id = o.order_id\nINNER JOIN olist_order_payments_dataset pay ON o.order_id = pay.order_id\nWHERE o.order_status = 'delivered' -- Only include completed orders\nGROUP BY p.product_category_name\nORDER BY total_revenue DESC\nLIMIT 10;",
+      "was_helpful": true,
+      "timestamp": "2026-03-24T03:03:49.079318"
+    },
+    {
+      "id": "uc_004",
+      "user_question": "What is the sales growth for the month of Jan 2017?",
+      "tables_recommended": [
+        "olist_orders_dataset",
+        "olist_order_payments_dataset"
+      ],
+      "tables_actually_used": [
+        "olist_orders_dataset",
+        "olist_order_payments_dataset"
+      ],
+      "sql_generated": "SELECT \n    jan_2016.revenue as jan_2016_revenue,\n    jan_2017.revenue as jan_2017_revenue,\n    ROUND((jan_2017.revenue - jan_2016.revenue) / jan_2016.revenue * 100, 2) as growth_percentage\nFROM \n    -- Jan 2016 revenue (prior year)\n    (SELECT SUM(p.payment_value) as revenue \n     FROM olist_order_payments_dataset p \n     JOIN olist_orders_dataset o ON p.order_id = o.order_id \n     WHERE o.order_status NOT IN ('canceled', 'unavailable') \n     AND strftime('%Y-%m', o.order_purchase_timestamp) = '2016-01') as jan_2016,\n    -- Jan 2017 revenue (current year)  \n    (SELECT SUM(p.payment_value) as revenue \n     FROM olist_order_payments_dataset p \n     JOIN olist_orders_dataset o ON p.order_id = o.order_id \n     WHERE o.order_status NOT IN ('canceled', 'unavailable') \n     AND strftime('%Y-%m', o.order_purchase_timestamp) = '2017-01') as jan_2017",
+      "sql_used": "SELECT \n    jan_2016.revenue as jan_2016_revenue,\n    jan_2017.revenue as jan_2017_revenue,\n    ROUND((jan_2017.revenue - jan_2016.revenue) / jan_2016.revenue * 100, 2) as growth_percentage\nFROM \n    -- Jan 2016 revenue (prior year)\n    (SELECT SUM(p.payment_value) as revenue \n     FROM olist_order_payments_dataset p \n     JOIN olist_orders_dataset o ON p.order_id = o.order_id \n     WHERE o.order_status NOT IN ('canceled', 'unavailable') \n     AND strftime('%Y-%m', o.order_purchase_timestamp) = '2016-01') as jan_2016,\n    -- Jan 2017 revenue (current year)  \n    (SELECT SUM(p.payment_value) as revenue \n     FROM olist_order_payments_dataset p \n     JOIN olist_orders_dataset o ON p.order_id = o.order_id \n     WHERE o.order_status NOT IN ('canceled', 'unavailable') \n     AND strftime('%Y-%m', o.order_purchase_timestamp) = '2017-01') as jan_2017",
+      "was_helpful": null,
+      "timestamp": "2026-03-24T16:14:26.585198"
+    },
+    {
+      "id": "uc_005",
+      "user_question": "What is the sales growth for the month of December 2017?",
+      "tables_recommended": [
+        "olist_orders_dataset",
+        "olist_order_payments_dataset"
+      ],
+      "tables_actually_used": [
+        "olist_orders_dataset",
+        "olist_order_payments_dataset"
+      ],
+      "sql_generated": "SELECT \n  COALESCE(SUM(CASE WHEN strftime('%Y-%m', o.order_purchase_timestamp) = '2016-12' THEN p.payment_value ELSE 0 END), 0) as dec_2016_revenue,\n  COALESCE(SUM(CASE WHEN strftime('%Y-%m', o.order_purchase_timestamp) = '2017-12' THEN p.payment_value ELSE 0 END), 0) as dec_2017_revenue,\n  CASE \n    WHEN SUM(CASE WHEN strftime('%Y-%m', o.order_purchase_timestamp) = '2016-12' THEN p.payment_value ELSE 0 END) > 0 \n    THEN ROUND((SUM(CASE WHEN strftime('%Y-%m', o.order_purchase_timestamp) = '2017-12' THEN p.payment_value ELSE 0 END) - SUM(CASE WHEN strftime('%Y-%m', o.order_purchase_timestamp) = '2016-12' THEN p.payment_value ELSE 0 END)) / SUM(CASE WHEN strftime('%Y-%m', o.order_purchase_timestamp) = '2016-12' THEN p.payment_value ELSE 0 END) * 100, 2)\n    ELSE NULL \n  END as growth_percentage\nFROM olist_order_payments_dataset p\nJOIN olist_orders_dataset o ON p.order_id = o.order_id\nWHERE o.order_status NOT IN ('canceled', 'unavailable')\n  AND strftime('%Y-%m', o.order_purchase_timestamp) IN ('2016-12', '2017-12');",
+      "sql_used": "SELECT \n  COALESCE(SUM(CASE WHEN strftime('%Y-%m', o.order_purchase_timestamp) = '2016-12' THEN p.payment_value ELSE 0 END), 0) as dec_2016_revenue,\n  COALESCE(SUM(CASE WHEN strftime('%Y-%m', o.order_purchase_timestamp) = '2017-12' THEN p.payment_value ELSE 0 END), 0) as dec_2017_revenue,\n  CASE \n    WHEN SUM(CASE WHEN strftime('%Y-%m', o.order_purchase_timestamp) = '2016-12' THEN p.payment_value ELSE 0 END) > 0 \n    THEN ROUND((SUM(CASE WHEN strftime('%Y-%m', o.order_purchase_timestamp) = '2017-12' THEN p.payment_value ELSE 0 END) - SUM(CASE WHEN strftime('%Y-%m', o.order_purchase_timestamp) = '2016-12' THEN p.payment_value ELSE 0 END)) / SUM(CASE WHEN strftime('%Y-%m', o.order_purchase_timestamp) = '2016-12' THEN p.payment_value ELSE 0 END) * 100, 2)\n    ELSE NULL \n  END as growth_percentage\nFROM olist_order_payments_dataset p\nJOIN olist_orders_dataset o ON p.order_id = o.order_id\nWHERE o.order_status NOT IN ('canceled', 'unavailable')\n  AND strftime('%Y-%m', o.order_purchase_timestamp) IN ('2016-12', '2017-12');",
+      "was_helpful": null,
+      "timestamp": "2026-03-24T16:16:24.436630"
+    },
+    {
+      "id": "uc_006",
+      "user_question": "What is the sales growth for May 2018?",
+      "tables_recommended": [
+        "olist_orders_dataset",
+        "olist_order_payments_dataset"
+      ],
+      "tables_actually_used": [
+        "olist_orders_dataset",
+        "olist_order_payments_dataset"
+      ],
+      "sql_generated": "SELECT \n    current_revenue,\n    prior_revenue,\n    ROUND((current_revenue - prior_revenue) / prior_revenue * 100, 2) AS growth_pct\nFROM (\n    SELECT \n        (SELECT SUM(p.payment_value) \n         FROM olist_order_payments_dataset p\n         JOIN olist_orders_dataset o ON p.order_id = o.order_id\n         WHERE o.order_status NOT IN ('canceled', 'unavailable')\n         AND strftime('%Y-%m', o.order_purchase_timestamp) = '2018-05') AS current_revenue,\n        (SELECT SUM(p.payment_value) \n         FROM olist_order_payments_dataset p\n         JOIN olist_orders_dataset o ON p.order_id = o.order_id\n         WHERE o.order_status NOT IN ('canceled', 'unavailable')\n         AND strftime('%Y-%m', o.order_purchase_timestamp) = '2017-05') AS prior_revenue\n);",
+      "sql_used": "SELECT \n    current_revenue,\n    prior_revenue,\n    ROUND((current_revenue - prior_revenue) / prior_revenue * 100, 2) AS growth_pct\nFROM (\n    SELECT \n        (SELECT SUM(p.payment_value) \n         FROM olist_order_payments_dataset p\n         JOIN olist_orders_dataset o ON p.order_id = o.order_id\n         WHERE o.order_status NOT IN ('canceled', 'unavailable')\n         AND strftime('%Y-%m', o.order_purchase_timestamp) = '2018-05') AS current_revenue,\n        (SELECT SUM(p.payment_value) \n         FROM olist_order_payments_dataset p\n         JOIN olist_orders_dataset o ON p.order_id = o.order_id\n         WHERE o.order_status NOT IN ('canceled', 'unavailable')\n         AND strftime('%Y-%m', o.order_purchase_timestamp) = '2017-05') AS prior_revenue\n);",
+      "was_helpful": true,
+      "timestamp": "2026-03-24T16:26:44.768653"
+    },
+    {
+      "id": "uc_007",
+      "user_question": "what are the top 5 product categories by sales in the year 2018?",
+      "tables_recommended": [
+        "olist_order_payments_dataset",
+        "olist_orders_dataset",
+        "olist_order_items_dataset",
+        "olist_products_dataset"
+      ],
+      "tables_actually_used": [
+        "olist_order_payments_dataset",
+        "olist_orders_dataset",
+        "olist_order_items_dataset",
+        "olist_products_dataset"
+      ],
+      "sql_generated": "SELECT \n    pr.product_category_name AS category,\n    ROUND(SUM(p.payment_value), 2) AS total_sales\nFROM olist_order_payments_dataset p\nINNER JOIN olist_orders_dataset o ON p.order_id = o.order_id\nINNER JOIN olist_order_items_dataset i ON o.order_id = i.order_id\nINNER JOIN olist_products_dataset pr ON i.product_id = pr.product_id\nWHERE o.order_status NOT IN ('canceled', 'unavailable')\n    AND strftime('%Y', o.order_purchase_timestamp) = '2018'\nGROUP BY pr.product_category_name\nORDER BY total_sales DESC\nLIMIT 5;",
+      "sql_used": "SELECT \n    pr.product_category_name AS category,\n    ROUND(SUM(p.payment_value), 2) AS total_sales\nFROM olist_order_payments_dataset p\nINNER JOIN olist_orders_dataset o ON p.order_id = o.order_id\nINNER JOIN olist_order_items_dataset i ON o.order_id = i.order_id\nINNER JOIN olist_products_dataset pr ON i.product_id = pr.product_id\nWHERE o.order_status NOT IN ('canceled', 'unavailable')\n    AND strftime('%Y', o.order_purchase_timestamp) = '2018'\nGROUP BY pr.product_category_name\nORDER BY total_sales DESC\nLIMIT 5;",
+      "was_helpful": true,
+      "timestamp": "2026-03-24T16:48:57.608615"
+    },
+    {
+      "id": "uc_008",
+      "user_question": "What are the top 3 product categories by sales in the month of March 2018?",
+      "tables_recommended": [
+        "olist_order_payments_dataset",
+        "olist_orders_dataset",
+        "olist_order_items_dataset",
+        "olist_products_dataset"
+      ],
+      "tables_actually_used": [
+        "olist_order_payments_dataset",
+        "olist_orders_dataset",
+        "olist_order_items_dataset",
+        "olist_products_dataset"
+      ],
+      "sql_generated": "-- Top 3 product categories by sales (revenue) in March 2018\nSELECT \n    pr.product_category_name AS category,\n    ROUND(SUM(p.payment_value), 2) AS total_sales\nFROM olist_order_payments_dataset p\nINNER JOIN olist_orders_dataset o ON p.order_id = o.order_id\nINNER JOIN olist_order_items_dataset i ON o.order_id = i.order_id  \nINNER JOIN olist_products_dataset pr ON i.product_id = pr.product_id\nWHERE o.order_status NOT IN ('canceled', 'unavailable')  -- Exclude non-completed orders\n    AND strftime('%Y-%m', o.order_purchase_timestamp) = '2018-03'  -- March 2018 filter\nGROUP BY pr.product_category_name\nORDER BY total_sales DESC\nLIMIT 3;",
+      "sql_used": "-- Top 3 product categories by sales (revenue) in March 2018\nSELECT \n    pr.product_category_name AS category,\n    ROUND(SUM(p.payment_value), 2) AS total_sales\nFROM olist_order_payments_dataset p\nINNER JOIN olist_orders_dataset o ON p.order_id = o.order_id\nINNER JOIN olist_order_items_dataset i ON o.order_id = i.order_id  \nINNER JOIN olist_products_dataset pr ON i.product_id = pr.product_id\nWHERE o.order_status NOT IN ('canceled', 'unavailable')  -- Exclude non-completed orders\n    AND strftime('%Y-%m', o.order_purchase_timestamp) = '2018-03'  -- March 2018 filter\nGROUP BY pr.product_category_name\nORDER BY total_sales DESC\nLIMIT 3;",
+      "was_helpful": true,
+      "timestamp": "2026-03-24T16:52:10.123374"
+    }
+  ]
 }

@@ -23,3 +23,7 @@ CLAUDE_MODEL = "claude-sonnet-4-20250514"
 # App settings
 APP_TITLE = "AI Dashboard Generator"
 APP_SUBTITLE = "Natural Language to Insights — No SQL Required"
+
+# Agent settings
+MAX_SQL_RETRIES = 3
+MAX_RESULTS_DISPLAY = 500

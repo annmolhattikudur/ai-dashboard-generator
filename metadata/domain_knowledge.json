@@ -1,170 +1,166 @@
 {
   "domain": "Brazilian E-Commerce (Olist Marketplace)",
   "dataset_notes": [
-    "Product categories are in Portuguese — ALWAYS join with product_category_name_translation table",
-    "Use customer_unique_id for unique customer counts, NOT customer_id (customer_id is per-order)",
-    "Revenue = SUM(payment_value) from payments table OR SUM(price + freight_value) from order_items",
+    "Product category names are already in English in olist_products_dataset.product_category_name — do NOT join with any translation table",
+    "Use customer_unique_id for unique customer counts, NOT customer_id (customer_id is per-order, customer_unique_id is the true customer identifier)",
+    "Revenue = SUM(payment_value) from olist_order_payments_dataset OR SUM(price + freight_value) from olist_order_items_dataset — prefer payment_value for accuracy",
     "Data spans Sep 2016 to Oct 2018. Best analysis window: Jan 2017 to Aug 2018",
-    "An order can have multiple items (order_items) and multiple payments (order_payments)",
-    "Total order value = SUM(price) + SUM(freight_value) for all items in that order"
+    "An order can have multiple items (olist_order_items_dataset) and multiple payment rows (olist_order_payments_dataset)",
+    "Total order value = SUM(price) + SUM(freight_value) for all items in that order",
+    "ZIP code prefix is stored as customer_zip_code_prefix in olist_customers_dataset and seller_zip_code_prefix in olist_sellers_dataset — use these for pin code / ZIP level analysis",
+    "Sep–Oct 2018 data is incomplete — warn the user if their query targets this period"
   ],
+  "order_status_filter_rule": {
+    "description": "CRITICAL: When computing any business metric (revenue, sales, assortment, orders, AOV, etc.), ALWAYS exclude orders with order_status IN ('canceled', 'unavailable'). These represent non-completed purchases. Use: WHERE o.order_status NOT IN ('canceled', 'unavailable')",
+    "valid_statuses_for_metrics": ["delivered", "shipped", "processing", "invoiced", "approved"],
+    "excluded_statuses": ["canceled", "unavailable"],
+    "sql_filter": "o.order_status NOT IN ('canceled', 'unavailable')"
+  },
   "metrics": {
     "total_revenue": {
-      "definition": "Total monetary value of all completed orders",
-      "formula": "SUM(payment_value) from order_payments WHERE order_status = 'delivered'",
-      "tables_needed": [
-        "olist_orders_dataset",
-        "olist_order_payments_dataset"
-      ],
-      "sql_pattern": "SELECT SUM(p.payment_value) as total_revenue FROM olist_order_payments_dataset p JOIN olist_orders_dataset o ON p.order_id = o.order_id WHERE o.order_status = 'delivered'"
+      "definition": "Total monetary value of all valid (non-canceled, non-unavailable) orders",
+      "formula": "SUM(payment_value) excluding canceled and unavailable orders",
+      "tables_needed": ["olist_orders_dataset", "olist_order_payments_dataset"],
+      "sql_pattern": "SELECT SUM(p.payment_value) as total_revenue FROM olist_order_payments_dataset p JOIN olist_orders_dataset o ON p.order_id = o.order_id WHERE o.order_status NOT IN ('canceled', 'unavailable')"
     },
     "revenue_trend": {
       "definition": "Revenue aggregated over time periods to show growth or decline",
-      "formula": "SUM(payment_value) grouped by month/quarter/year",
-      "tables_needed": [
-        "olist_orders_dataset",
-        "olist_order_payments_dataset"
-      ],
-      "sql_pattern": "SELECT strftime('%Y-%m', o.order_purchase_timestamp) as month, SUM(p.payment_value) as revenue FROM olist_order_payments_dataset p JOIN olist_orders_dataset o ON p.order_id = o.order_id GROUP BY month ORDER BY month"
+      "formula": "SUM(payment_value) grouped by month/quarter/year, excluding canceled and unavailable",
+      "tables_needed": ["olist_orders_dataset", "olist_order_payments_dataset"],
+      "sql_pattern": "SELECT strftime('%Y-%m', o.order_purchase_timestamp) as month, SUM(p.payment_value) as revenue FROM olist_order_payments_dataset p JOIN olist_orders_dataset o ON p.order_id = o.order_id WHERE o.order_status NOT IN ('canceled', 'unavailable') GROUP BY month ORDER BY month"
     },
     "average_order_value": {
-      "definition": "Average revenue per order",
-      "formula": "Total Revenue / Number of Unique Orders",
-      "tables_needed": [
-        "olist_order_payments_dataset"
-      ],
-      "sql_pattern": "SELECT ROUND(SUM(payment_value) / COUNT(DISTINCT order_id), 2) as aov FROM olist_order_payments_dataset"
+      "definition": "Average revenue per order, excluding canceled and unavailable",
+      "formula": "SUM(payment_value) / COUNT(DISTINCT order_id)",
+      "tables_needed": ["olist_orders_dataset", "olist_order_payments_dataset"],
+      "sql_pattern": "SELECT ROUND(SUM(p.payment_value) / COUNT(DISTINCT p.order_id), 2) as aov FROM olist_order_payments_dataset p JOIN olist_orders_dataset o ON p.order_id = o.order_id WHERE o.order_status NOT IN ('canceled', 'unavailable')"
     },
     "distinct_sku_sold": {
-      "definition": "Number of unique products available in a category or overall",
-      "formula": "COUNT(DISTINCT product_id)",
-      "tables_needed": [
-        "olist_products_dataset",
-        "product_category_name_translation"
-      ],
-      "sql_pattern": "SELECT t.product_category_name_english as category, COUNT(DISTINCT p.product_id) as assortment FROM olist_products_dataset p JOIN product_category_name_translation t ON p.product_category_name = t.product_category_name GROUP BY category ORDER BY assortment DESC"
+      "definition": "Number of unique products sold (appearing in valid orders)",
+      "formula": "COUNT(DISTINCT product_id) on orders excluding canceled and unavailable",
+      "tables_needed": ["olist_order_items_dataset", "olist_orders_dataset"],
+      "sql_pattern": "SELECT COUNT(DISTINCT i.product_id) as distinct_sku FROM olist_order_items_dataset i JOIN olist_orders_dataset o ON i.order_id = o.order_id WHERE o.order_status NOT IN ('canceled', 'unavailable')"
+    },
+    "assortment": {
+      "definition": "For each unique product sold, count of distinct customers who bought it — measures breadth of product reach. Excludes canceled and unavailable orders.",
+      "formula": "Per product_id: COUNT(DISTINCT customer_id) WHERE order_status NOT IN ('canceled','unavailable')",
+      "tables_needed": ["olist_orders_dataset", "olist_order_items_dataset"],
+      "sql_pattern": "SELECT i.product_id, COUNT(DISTINCT o.customer_id) as distinct_customers FROM olist_order_items_dataset i JOIN olist_orders_dataset o ON i.order_id = o.order_id WHERE o.order_status NOT IN ('canceled', 'unavailable') GROUP BY i.product_id ORDER BY distinct_customers DESC"
     },
     "customer_satisfaction": {
-      "definition": "Average review score given by customers (1-5 scale)",
+      "definition": "Average review score given by customers (1–5 scale)",
       "formula": "AVG(review_score)",
-      "tables_needed": [
-        "olist_order_reviews_dataset"
-      ],
+      "tables_needed": ["olist_order_reviews_dataset"],
       "sql_pattern": "SELECT ROUND(AVG(review_score), 2) as avg_satisfaction FROM olist_order_reviews_dataset",
       "known_insight": "Average across all products is approximately 4.0"
     },
     "order_cancellation_rate": {
-      "definition": "Percentage of orders that were cancelled",
+      "definition": "Percentage of orders that were cancelled out of all orders",
       "formula": "(COUNT orders WHERE status='canceled' / COUNT all orders) * 100",
-      "tables_needed": [
-        "olist_orders_dataset"
-      ],
+      "tables_needed": ["olist_orders_dataset"],
       "sql_pattern": "SELECT ROUND(100.0 * SUM(CASE WHEN order_status = 'canceled' THEN 1 ELSE 0 END) / COUNT(*), 2) as cancellation_rate FROM olist_orders_dataset",
       "known_insight": "Cancellation rate is approximately 0.6%"
     },
     "delivery_performance": {
-      "definition": "How actual delivery compares to estimated delivery date",
+      "definition": "How actual delivery compares to estimated delivery date (negative = early, positive = late)",
       "formula": "julianday(order_delivered_customer_date) - julianday(order_estimated_delivery_date)",
-      "tables_needed": [
-        "olist_orders_dataset"
-      ],
+      "tables_needed": ["olist_orders_dataset"],
       "sql_pattern": "SELECT ROUND(AVG(julianday(order_delivered_customer_date) - julianday(order_estimated_delivery_date)), 1) as avg_days_diff FROM olist_orders_dataset WHERE order_delivered_customer_date IS NOT NULL"
     },
-    "sales_growth": {
-      "definition": "Percentage change in revenue between two consecutive periods",
-      "formula": "((Current Period Revenue - Previous Period Revenue) / Previous Period Revenue) * 100",
-      "tables_needed": [
-        "olist_orders_dataset",
-        "olist_order_payments_dataset"
-      ]
-    },
     "top_categories": {
-      "definition": "Product categories ranked by order volume or revenue",
-      "tables_needed": [
-        "olist_order_items_dataset",
-        "olist_products_dataset",
-        "product_category_name_translation"
-      ],
+      "definition": "Product categories ranked by order volume or revenue, excluding canceled and unavailable orders",
+      "tables_needed": ["olist_order_items_dataset", "olist_products_dataset", "olist_orders_dataset"],
       "known_insight": "Top categories by volume: bed_bath_table, health_beauty, sports_leisure, furniture_decor, computers_accessories"
     },
     "seller_performance": {
-      "definition": "Revenue, order count, and review scores per seller",
-      "tables_needed": [
-        "olist_order_items_dataset",
-        "olist_sellers_dataset",
-        "olist_order_reviews_dataset",
-        "olist_orders_dataset"
-      ]
+      "definition": "Revenue, order count, and review scores per seller, excluding canceled and unavailable",
+      "tables_needed": ["olist_order_items_dataset", "olist_sellers_dataset", "olist_order_reviews_dataset", "olist_orders_dataset"]
     },
     "payment_analysis": {
       "definition": "Breakdown of orders by payment method and installment patterns",
-      "tables_needed": [
-        "olist_order_payments_dataset"
-      ],
+      "tables_needed": ["olist_order_payments_dataset"],
       "known_insight": "Credit card is the most common payment method with highest AOV"
     },
     "customer_geography": {
-      "definition": "Distribution of customers and orders by state/city",
-      "tables_needed": [
-        "olist_customers_dataset",
-        "olist_orders_dataset"
-      ],
+      "definition": "Distribution of customers and orders by state, city, or ZIP code prefix",
+      "tables_needed": ["olist_customers_dataset", "olist_orders_dataset"],
       "known_insight": "Sao Paulo (SP) has the highest customer density"
     },
     "freight_analysis": {
       "definition": "Shipping cost analysis by product weight, category, or distance",
       "formula": "AVG(freight_value) or SUM(freight_value) / SUM(price) for freight-to-price ratio",
-      "tables_needed": [
-        "olist_order_items_dataset",
-        "olist_products_dataset"
-      ]
+      "tables_needed": ["olist_order_items_dataset", "olist_products_dataset"]
     }
   },
+  "growth_calculation_rules": {
+    "description": "Rules for computing period-over-period growth for any metric (sales/revenue, assortment, orders, AOV, etc.). Growth formula is always: (Current - Prior) / Prior * 100. Always exclude order_status IN ('canceled','unavailable').",
+    "growth_formula": "((current_period_value - prior_period_value) / prior_period_value) * 100",
+    "time_period_types": {
+      "monthly_growth": {
+        "description": "Growth for a specific calendar month versus the same month in the prior year. E.g. 'sales growth for May 2018' = May 2018 vs May 2017.",
+        "current_period_filter": "strftime('%Y-%m', o.order_purchase_timestamp) = '<YYYY-MM>'",
+        "prior_period_filter": "strftime('%Y-%m', o.order_purchase_timestamp) = '<YYYY-1-MM>'",
+        "example": "May 2018 growth = SUM(revenue May 2018) vs SUM(revenue May 2017)",
+        "sql_pattern": "WITH current_period AS (SELECT SUM(p.payment_value) AS revenue FROM olist_order_payments_dataset p JOIN olist_orders_dataset o ON p.order_id = o.order_id WHERE o.order_status NOT IN ('canceled','unavailable') AND strftime('%Y-%m', o.order_purchase_timestamp) = '2018-05'), prior_period AS (SELECT SUM(p.payment_value) AS revenue FROM olist_order_payments_dataset p JOIN olist_orders_dataset o ON p.order_id = o.order_id WHERE o.order_status NOT IN ('canceled','unavailable') AND strftime('%Y-%m', o.order_purchase_timestamp) = '2017-05') SELECT c.revenue AS current_revenue, pr.revenue AS prior_revenue, ROUND((c.revenue - pr.revenue) / pr.revenue * 100, 2) AS growth_pct FROM current_period c, prior_period pr"
+      },
+      "ytd_growth": {
+        "description": "Year-to-date growth: cumulative metric from Jan 1 through the specified month of the current year vs same cumulative period in prior year. E.g. 'YTD Feb 2017 growth' = (Jan+Feb 2017) vs (Jan+Feb 2016).",
+        "current_period_filter": "strftime('%Y', o.order_purchase_timestamp) = '<YYYY>' AND strftime('%m', o.order_purchase_timestamp) <= '<MM>'",
+        "prior_period_filter": "strftime('%Y', o.order_purchase_timestamp) = '<YYYY-1>' AND strftime('%m', o.order_purchase_timestamp) <= '<MM>'",
+        "example": "YTD Feb 2017 = (Jan 2017 + Feb 2017) vs (Jan 2016 + Feb 2016)",
+        "sql_pattern": "WITH current_ytd AS (SELECT SUM(p.payment_value) AS revenue FROM olist_order_payments_dataset p JOIN olist_orders_dataset o ON p.order_id = o.order_id WHERE o.order_status NOT IN ('canceled','unavailable') AND strftime('%Y', o.order_purchase_timestamp) = '2017' AND strftime('%m', o.order_purchase_timestamp) <= '02'), prior_ytd AS (SELECT SUM(p.payment_value) AS revenue FROM olist_order_payments_dataset p JOIN olist_orders_dataset o ON p.order_id = o.order_id WHERE o.order_status NOT IN ('canceled','unavailable') AND strftime('%Y', o.order_purchase_timestamp) = '2016' AND strftime('%m', o.order_purchase_timestamp) <= '02') SELECT c.revenue AS current_ytd_revenue, p.revenue AS prior_ytd_revenue, ROUND((c.revenue - p.revenue) / p.revenue * 100, 2) AS growth_pct FROM current_ytd c, prior_ytd p"
+      },
+      "year_on_year_growth": {
+        "description": "Full-year growth: all available months of the current year vs the same months in the prior year (use matching months only to avoid partial-year distortion). E.g. 'sales growth for 2017' = all 2017 months vs same months in 2016.",
+        "approach": "First find all distinct months present in the current year, then sum both years restricted to those same months",
+        "example": "YoY 2017 = SUM(all months in 2017) vs SUM(same months from 2016)",
+        "sql_pattern": "WITH months_in_current AS (SELECT DISTINCT strftime('%m', o.order_purchase_timestamp) AS mo FROM olist_orders_dataset o WHERE o.order_status NOT IN ('canceled','unavailable') AND strftime('%Y', o.order_purchase_timestamp) = '2017'), current_year AS (SELECT SUM(p.payment_value) AS revenue FROM olist_order_payments_dataset p JOIN olist_orders_dataset o ON p.order_id = o.order_id WHERE o.order_status NOT IN ('canceled','unavailable') AND strftime('%Y', o.order_purchase_timestamp) = '2017'), prior_year AS (SELECT SUM(p.payment_value) AS revenue FROM olist_order_payments_dataset p JOIN olist_orders_dataset o ON p.order_id = o.order_id WHERE o.order_status NOT IN ('canceled','unavailable') AND strftime('%Y', o.order_purchase_timestamp) = '2016' AND strftime('%m', o.order_purchase_timestamp) IN (SELECT mo FROM months_in_current)) SELECT c.revenue AS current_year_revenue, p.revenue AS prior_year_revenue, ROUND((c.revenue - p.revenue) / p.revenue * 100, 2) AS growth_pct FROM current_year c, prior_year p"
+      }
+    },
+    "dimensional_growth": {
+      "description": "When growth is requested by a dimension (e.g. by category, by state, by ZIP code), compute current and prior period values grouped by that dimension, then join and calculate growth per group.",
+      "dimensions_supported": ["product_category_name (from olist_products_dataset)", "customer_state (from olist_customers_dataset)", "seller_state (from olist_sellers_dataset)", "customer_zip_code_prefix (from olist_customers_dataset)", "seller_zip_code_prefix (from olist_sellers_dataset)", "payment_type (from olist_order_payments_dataset)"],
+      "sql_pattern_by_category": "WITH current_period AS (SELECT pr.product_category_name AS category, SUM(p.payment_value) AS revenue FROM olist_order_payments_dataset p JOIN olist_orders_dataset o ON p.order_id = o.order_id JOIN olist_order_items_dataset i ON o.order_id = i.order_id JOIN olist_products_dataset pr ON i.product_id = pr.product_id WHERE o.order_status NOT IN ('canceled','unavailable') AND strftime('%Y-%m', o.order_purchase_timestamp) = '2018-05' GROUP BY category), prior_period AS (SELECT pr.product_category_name AS category, SUM(p.payment_value) AS revenue FROM olist_order_payments_dataset p JOIN olist_orders_dataset o ON p.order_id = o.order_id JOIN olist_order_items_dataset i ON o.order_id = i.order_id JOIN olist_products_dataset pr ON i.product_id = pr.product_id WHERE o.order_status NOT IN ('canceled','unavailable') AND strftime('%Y-%m', o.order_purchase_timestamp) = '2017-05' GROUP BY category) SELECT c.category, c.revenue AS current_revenue, COALESCE(p.revenue, 0) AS prior_revenue, CASE WHEN p.revenue > 0 THEN ROUND((c.revenue - p.revenue) / p.revenue * 100, 2) ELSE NULL END AS growth_pct FROM current_period c LEFT JOIN prior_period p ON c.category = p.category ORDER BY growth_pct DESC",
+      "sql_pattern_by_state": "WITH current_period AS (SELECT cu.customer_state AS state, SUM(p.payment_value) AS revenue FROM olist_order_payments_dataset p JOIN olist_orders_dataset o ON p.order_id = o.order_id JOIN olist_customers_dataset cu ON o.customer_id = cu.customer_id WHERE o.order_status NOT IN ('canceled','unavailable') AND strftime('%Y-%m', o.order_purchase_timestamp) = '2018-05' GROUP BY state), prior_period AS (SELECT cu.customer_state AS state, SUM(p.payment_value) AS revenue FROM olist_order_payments_dataset p JOIN olist_orders_dataset o ON p.order_id = o.order_id JOIN olist_customers_dataset cu ON o.customer_id = cu.customer_id WHERE o.order_status NOT IN ('canceled','unavailable') AND strftime('%Y-%m', o.order_purchase_timestamp) = '2017-05' GROUP BY state) SELECT c.state, c.revenue AS current_revenue, COALESCE(p.revenue, 0) AS prior_revenue, CASE WHEN p.revenue > 0 THEN ROUND((c.revenue - p.revenue) / p.revenue * 100, 2) ELSE NULL END AS growth_pct FROM current_period c LEFT JOIN prior_period p ON c.state = p.state ORDER BY growth_pct DESC"
+    },
+    "assortment_growth": {
+      "description": "Assortment growth = change in COUNT(DISTINCT product_id, customer_id) combinations between periods. Apply same monthly/YTD/YoY logic.",
+      "formula": "(current_period_assortment - prior_period_assortment) / prior_period_assortment * 100",
+      "sql_pattern_monthly": "WITH current_period AS (SELECT COUNT(DISTINCT i.product_id || '_' || o.customer_id) AS assortment FROM olist_order_items_dataset i JOIN olist_orders_dataset o ON i.order_id = o.order_id WHERE o.order_status NOT IN ('canceled','unavailable') AND strftime('%Y-%m', o.order_purchase_timestamp) = '2018-05'), prior_period AS (SELECT COUNT(DISTINCT i.product_id || '_' || o.customer_id) AS assortment FROM olist_order_items_dataset i JOIN olist_orders_dataset o ON i.order_id = o.order_id WHERE o.order_status NOT IN ('canceled','unavailable') AND strftime('%Y-%m', o.order_purchase_timestamp) = '2017-05') SELECT c.assortment AS current_assortment, p.assortment AS prior_assortment, ROUND((c.assortment - p.assortment) * 100.0 / p.assortment, 2) AS growth_pct FROM current_period c, prior_period p"
+    }
+  },
+  "growth_visualization_spec": {
+    "description": "ALWAYS use this chart type when the user asks for growth, change, or comparison between two time periods.",
+    "chart_type": "combo — grouped bar chart with an overlaid line chart",
+    "bar_series_1": "Prior period metric value (labelled with the prior period, e.g. 'May 2017')",
+    "bar_series_2": "Current period metric value (labelled with the current period, e.g. 'May 2018')",
+    "line_series": "Growth percentage (%) — plotted on a secondary Y-axis on the right, shows the trend and quantifies growth",
+    "x_axis": "Dimension being analysed (e.g. category name, state, month, ZIP code). For a single aggregate growth number, use the period label on the X-axis.",
+    "color_convention": "Bars: use two shades of blue. Growth line: green if positive growth is expected, otherwise neutral grey with data labels showing + or - %",
+    "plotly_hint": "Use go.Bar for the two period bars and go.Scatter(mode='lines+markers') for the growth % line. Set yaxis2=dict(overlaying='y', side='right') for the secondary axis."
+  },
   "common_dimensions": {
-    "time": [
-      "daily",
-      "weekly",
-      "monthly",
-      "quarterly",
-      "yearly",
-      "YoY",
-      "MoM"
-    ],
-    "product": [
-      "category (English)",
-      "product_id"
-    ],
-    "geography": [
-      "customer_state",
-      "customer_city",
-      "seller_state",
-      "seller_city"
-    ],
-    "customer": [
-      "customer_unique_id",
-      "customer_state"
-    ],
-    "payment": [
-      "payment_type",
-      "payment_installments"
-    ],
-    "order_status": [
-      "delivered",
-      "shipped",
-      "canceled",
-      "processing"
-    ]
+    "time": ["daily", "weekly", "monthly", "quarterly", "yearly", "YoY", "MoM", "YTD"],
+    "product": ["product_category_name (already English)", "product_id"],
+    "geography": ["customer_state", "customer_city", "customer_zip_code_prefix", "seller_state", "seller_city", "seller_zip_code_prefix"],
+    "customer": ["customer_unique_id", "customer_state"],
+    "payment": ["payment_type", "payment_installments"],
+    "order_status_valid": ["delivered", "shipped", "processing", "invoiced", "approved"]
   },
   "business_rules": [
-    "ALWAYS join products with product_category_name_translation to get English category names",
+    "CRITICAL: ALWAYS exclude order_status IN ('canceled','unavailable') when computing any business metric (revenue, sales, assortment, order count, AOV). Use: WHERE o.order_status NOT IN ('canceled', 'unavailable')",
+    "Product category names are already in English in olist_products_dataset.product_category_name — do NOT join any translation table",
     "Use customer_unique_id for counting unique customers, NOT customer_id",
-    "When calculating revenue, prefer SUM(payment_value) from payments table for accuracy",
-    "Filter order_status = 'delivered' for completed order analysis unless user wants all statuses",
+    "When calculating revenue, prefer SUM(payment_value) from olist_order_payments_dataset for accuracy",
+    "When user asks for 'sales growth' or 'revenue growth' for a month (e.g. May 2018), compare that month against the same month of the prior year (May 2017). Formula: (current - prior) / prior * 100",
+    "When user asks for 'YTD growth' (e.g. YTD Feb 2017), sum Jan through the specified month of the given year and compare against Jan through the same month of the prior year",
+    "When user asks for 'year on year growth' or 'YoY' for a full year (e.g. 2017), sum all available months in 2017 and compare against the same months from 2016",
+    "When growth is requested, ALWAYS render a combo bar+line chart: two bars (prior period vs current period) + a line for growth % on secondary Y-axis",
     "When user says 'top products', default to top 10 by revenue unless specified otherwise",
     "When user says 'trend', use a line chart with time on X-axis",
     "When user says 'compare', use a grouped bar chart",
     "When user says 'breakdown' or 'distribution', use stacked bar or pie chart",
-    "For growth calculations, compare same period (e.g. Jan 2018 vs Jan 2017 for YoY)",
-    "Be aware that Sep-Oct 2018 data is incomplete — warn user if their query includes this period"
+    "ZIP code / pin code queries: use customer_zip_code_prefix (olist_customers_dataset) or seller_zip_code_prefix (olist_sellers_dataset)",
+    "Sep–Oct 2018 data is incomplete — warn the user if their query targets this period"
   ]
 }
