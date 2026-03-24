@@ -18,7 +18,7 @@ USE_CASE_LOG_PATH = METADATA_DIR / "use_case_log.json"
 
 # Anthropic API
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-CLAUDE_MODEL = "claude-sonnet-4-6"
+CLAUDE_MODEL = "claude-sonnet-4-20250514"
 
 # App settings
 APP_TITLE = "AI Dashboard Generator"
