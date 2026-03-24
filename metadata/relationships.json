@@ -1,0 +1,92 @@
+{
+  "relationships": [
+    {
+      "from_table": "olist_orders_dataset",
+      "from_column": "customer_id",
+      "to_table": "olist_customers_dataset",
+      "to_column": "customer_id",
+      "relationship_type": "many-to-one",
+      "confidence": "verified"
+    },
+    {
+      "from_table": "olist_order_items_dataset",
+      "from_column": "order_id",
+      "to_table": "olist_orders_dataset",
+      "to_column": "order_id",
+      "relationship_type": "many-to-one",
+      "confidence": "verified"
+    },
+    {
+      "from_table": "olist_order_items_dataset",
+      "from_column": "product_id",
+      "to_table": "olist_products_dataset",
+      "to_column": "product_id",
+      "relationship_type": "many-to-one",
+      "confidence": "verified"
+    },
+    {
+      "from_table": "olist_order_items_dataset",
+      "from_column": "seller_id",
+      "to_table": "olist_sellers_dataset",
+      "to_column": "seller_id",
+      "relationship_type": "many-to-one",
+      "confidence": "verified"
+    },
+    {
+      "from_table": "olist_order_payments_dataset",
+      "from_column": "order_id",
+      "to_table": "olist_orders_dataset",
+      "to_column": "order_id",
+      "relationship_type": "many-to-one",
+      "confidence": "verified"
+    },
+    {
+      "from_table": "olist_order_reviews_dataset",
+      "from_column": "order_id",
+      "to_table": "olist_orders_dataset",
+      "to_column": "order_id",
+      "relationship_type": "many-to-one",
+      "confidence": "verified"
+    },
+    {
+      "from_table": "olist_customers_dataset",
+      "from_column": "customer_zip_code_prefix",
+      "to_table": "olist_geolocation_dataset",
+      "to_column": "geolocation_zip_code_prefix",
+      "relationship_type": "many-to-one",
+      "confidence": "verified"
+    },
+    {
+      "from_table": "olist_sellers_dataset",
+      "from_column": "seller_zip_code_prefix",
+      "to_table": "olist_geolocation_dataset",
+      "to_column": "geolocation_zip_code_prefix",
+      "relationship_type": "many-to-one",
+      "confidence": "verified"
+    },
+    {
+      "from_table": "olist_order_items_dataset",
+      "from_column": "order_id",
+      "to_table": "olist_order_payments_dataset",
+      "to_column": "order_id",
+      "relationship_type": "many-to-one",
+      "confidence": "auto-detected"
+    },
+    {
+      "from_table": "olist_order_items_dataset",
+      "from_column": "order_id",
+      "to_table": "olist_order_reviews_dataset",
+      "to_column": "order_id",
+      "relationship_type": "many-to-one",
+      "confidence": "auto-detected"
+    },
+    {
+      "from_table": "olist_order_payments_dataset",
+      "from_column": "order_id",
+      "to_table": "olist_order_reviews_dataset",
+      "to_column": "order_id",
+      "relationship_type": "many-to-one",
+      "confidence": "auto-detected"
+    }
+  ]
+}

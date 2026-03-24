@@ -1,0 +1,170 @@
+{
+  "domain": "Brazilian E-Commerce (Olist Marketplace)",
+  "dataset_notes": [
+    "Product categories are in Portuguese — ALWAYS join with product_category_name_translation table",
+    "Use customer_unique_id for unique customer counts, NOT customer_id (customer_id is per-order)",
+    "Revenue = SUM(payment_value) from payments table OR SUM(price + freight_value) from order_items",
+    "Data spans Sep 2016 to Oct 2018. Best analysis window: Jan 2017 to Aug 2018",
+    "An order can have multiple items (order_items) and multiple payments (order_payments)",
+    "Total order value = SUM(price) + SUM(freight_value) for all items in that order"
+  ],
+  "metrics": {
+    "total_revenue": {
+      "definition": "Total monetary value of all completed orders",
+      "formula": "SUM(payment_value) from order_payments WHERE order_status = 'delivered'",
+      "tables_needed": [
+        "olist_orders_dataset",
+        "olist_order_payments_dataset"
+      ],
+      "sql_pattern": "SELECT SUM(p.payment_value) as total_revenue FROM olist_order_payments_dataset p JOIN olist_orders_dataset o ON p.order_id = o.order_id WHERE o.order_status = 'delivered'"
+    },
+    "revenue_trend": {
+      "definition": "Revenue aggregated over time periods to show growth or decline",
+      "formula": "SUM(payment_value) grouped by month/quarter/year",
+      "tables_needed": [
+        "olist_orders_dataset",
+        "olist_order_payments_dataset"
+      ],
+      "sql_pattern": "SELECT strftime('%Y-%m', o.order_purchase_timestamp) as month, SUM(p.payment_value) as revenue FROM olist_order_payments_dataset p JOIN olist_orders_dataset o ON p.order_id = o.order_id GROUP BY month ORDER BY month"
+    },
+    "average_order_value": {
+      "definition": "Average revenue per order",
+      "formula": "Total Revenue / Number of Unique Orders",
+      "tables_needed": [
+        "olist_order_payments_dataset"
+      ],
+      "sql_pattern": "SELECT ROUND(SUM(payment_value) / COUNT(DISTINCT order_id), 2) as aov FROM olist_order_payments_dataset"
+    },
+    "distinct_sku_sold": {
+      "definition": "Number of unique products available in a category or overall",
+      "formula": "COUNT(DISTINCT product_id)",
+      "tables_needed": [
+        "olist_products_dataset",
+        "product_category_name_translation"
+      ],
+      "sql_pattern": "SELECT t.product_category_name_english as category, COUNT(DISTINCT p.product_id) as assortment FROM olist_products_dataset p JOIN product_category_name_translation t ON p.product_category_name = t.product_category_name GROUP BY category ORDER BY assortment DESC"
+    },
+    "customer_satisfaction": {
+      "definition": "Average review score given by customers (1-5 scale)",
+      "formula": "AVG(review_score)",
+      "tables_needed": [
+        "olist_order_reviews_dataset"
+      ],
+      "sql_pattern": "SELECT ROUND(AVG(review_score), 2) as avg_satisfaction FROM olist_order_reviews_dataset",
+      "known_insight": "Average across all products is approximately 4.0"
+    },
+    "order_cancellation_rate": {
+      "definition": "Percentage of orders that were cancelled",
+      "formula": "(COUNT orders WHERE status='canceled' / COUNT all orders) * 100",
+      "tables_needed": [
+        "olist_orders_dataset"
+      ],
+      "sql_pattern": "SELECT ROUND(100.0 * SUM(CASE WHEN order_status = 'canceled' THEN 1 ELSE 0 END) / COUNT(*), 2) as cancellation_rate FROM olist_orders_dataset",
+      "known_insight": "Cancellation rate is approximately 0.6%"
+    },
+    "delivery_performance": {
+      "definition": "How actual delivery compares to estimated delivery date",
+      "formula": "julianday(order_delivered_customer_date) - julianday(order_estimated_delivery_date)",
+      "tables_needed": [
+        "olist_orders_dataset"
+      ],
+      "sql_pattern": "SELECT ROUND(AVG(julianday(order_delivered_customer_date) - julianday(order_estimated_delivery_date)), 1) as avg_days_diff FROM olist_orders_dataset WHERE order_delivered_customer_date IS NOT NULL"
+    },
+    "sales_growth": {
+      "definition": "Percentage change in revenue between two consecutive periods",
+      "formula": "((Current Period Revenue - Previous Period Revenue) / Previous Period Revenue) * 100",
+      "tables_needed": [
+        "olist_orders_dataset",
+        "olist_order_payments_dataset"
+      ]
+    },
+    "top_categories": {
+      "definition": "Product categories ranked by order volume or revenue",
+      "tables_needed": [
+        "olist_order_items_dataset",
+        "olist_products_dataset",
+        "product_category_name_translation"
+      ],
+      "known_insight": "Top categories by volume: bed_bath_table, health_beauty, sports_leisure, furniture_decor, computers_accessories"
+    },
+    "seller_performance": {
+      "definition": "Revenue, order count, and review scores per seller",
+      "tables_needed": [
+        "olist_order_items_dataset",
+        "olist_sellers_dataset",
+        "olist_order_reviews_dataset",
+        "olist_orders_dataset"
+      ]
+    },
+    "payment_analysis": {
+      "definition": "Breakdown of orders by payment method and installment patterns",
+      "tables_needed": [
+        "olist_order_payments_dataset"
+      ],
+      "known_insight": "Credit card is the most common payment method with highest AOV"
+    },
+    "customer_geography": {
+      "definition": "Distribution of customers and orders by state/city",
+      "tables_needed": [
+        "olist_customers_dataset",
+        "olist_orders_dataset"
+      ],
+      "known_insight": "Sao Paulo (SP) has the highest customer density"
+    },
+    "freight_analysis": {
+      "definition": "Shipping cost analysis by product weight, category, or distance",
+      "formula": "AVG(freight_value) or SUM(freight_value) / SUM(price) for freight-to-price ratio",
+      "tables_needed": [
+        "olist_order_items_dataset",
+        "olist_products_dataset"
+      ]
+    }
+  },
+  "common_dimensions": {
+    "time": [
+      "daily",
+      "weekly",
+      "monthly",
+      "quarterly",
+      "yearly",
+      "YoY",
+      "MoM"
+    ],
+    "product": [
+      "category (English)",
+      "product_id"
+    ],
+    "geography": [
+      "customer_state",
+      "customer_city",
+      "seller_state",
+      "seller_city"
+    ],
+    "customer": [
+      "customer_unique_id",
+      "customer_state"
+    ],
+    "payment": [
+      "payment_type",
+      "payment_installments"
+    ],
+    "order_status": [
+      "delivered",
+      "shipped",
+      "canceled",
+      "processing"
+    ]
+  },
+  "business_rules": [
+    "ALWAYS join products with product_category_name_translation to get English category names",
+    "Use customer_unique_id for counting unique customers, NOT customer_id",
+    "When calculating revenue, prefer SUM(payment_value) from payments table for accuracy",
+    "Filter order_status = 'delivered' for completed order analysis unless user wants all statuses",
+    "When user says 'top products', default to top 10 by revenue unless specified otherwise",
+    "When user says 'trend', use a line chart with time on X-axis",
+    "When user says 'compare', use a grouped bar chart",
+    "When user says 'breakdown' or 'distribution', use stacked bar or pie chart",
+    "For growth calculations, compare same period (e.g. Jan 2018 vs Jan 2017 for YoY)",
+    "Be aware that Sep-Oct 2018 data is incomplete — warn user if their query includes this period"
+  ]
+}

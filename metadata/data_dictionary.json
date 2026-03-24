@@ -1,0 +1,752 @@
+{
+  "olist_customers_dataset.customer_id": {
+    "data_type": "TEXT",
+    "nullable": false,
+    "unique_count": 99441,
+    "sample_values": [
+      "00012a2ce6f8dcda20d059ce98491703",
+      "000161a058600d5901f007fab4c27140",
+      "0001fd6190edaaf884bcaf3d49edf079",
+      "0002414f95344307404f0ace7a26f1d5",
+      "000379cdec625522490c315e70c7a9fb"
+    ],
+    "min_value": null,
+    "max_value": null,
+    "description": "Per-order customer ID. This changes per order — NOT the unique customer identifier."
+  },
+  "olist_customers_dataset.customer_unique_id": {
+    "data_type": "TEXT",
+    "nullable": false,
+    "unique_count": 96096,
+    "sample_values": [
+      "0000366f3b9a7992bf8c76cfdf3221e2",
+      "0000b849f77a49e4a4ce2b2a4ca5be3f",
+      "0000f46a3911fa3c0805444483337064",
+      "0000f6ccb0745a6a4b88665a16c9f078",
+      "0004aac84e0df4da2b147fca70cf8255"
+    ],
+    "min_value": null,
+    "max_value": null,
+    "description": "True unique customer identifier. Use this for counting unique customers."
+  },
+  "olist_customers_dataset.customer_zip_code_prefix": {
+    "data_type": "INTEGER",
+    "nullable": false,
+    "unique_count": 14994,
+    "sample_values": [
+      "1003",
+      "1004",
+      "1005",
+      "1006",
+      "1007"
+    ],
+    "min_value": "1003",
+    "max_value": "99990",
+    "description": "5-digit zip code prefix. Joins to olist_geolocation_dataset."
+  },
+  "olist_customers_dataset.customer_city": {
+    "data_type": "TEXT",
+    "nullable": false,
+    "unique_count": 4119,
+    "sample_values": [
+      "franca",
+      "sao bernardo do campo",
+      "sao paulo",
+      "mogi das cruzes",
+      "campinas"
+    ],
+    "min_value": null,
+    "max_value": null,
+    "description": "Customer city name."
+  },
+  "olist_customers_dataset.customer_state": {
+    "data_type": "TEXT",
+    "nullable": false,
+    "unique_count": 27,
+    "sample_values": [
+      "SP",
+      "SC",
+      "MG",
+      "PR",
+      "RJ"
+    ],
+    "min_value": null,
+    "max_value": null,
+    "description": "Brazilian state abbreviation (e.g., SP, RJ, MG)."
+  },
+  "olist_geolocation_dataset.geolocation_zip_code_prefix": {
+    "data_type": "INTEGER",
+    "nullable": false,
+    "unique_count": 19015,
+    "sample_values": [
+      "1001",
+      "1002",
+      "1003",
+      "1004",
+      "1005"
+    ],
+    "min_value": "1001",
+    "max_value": "99990",
+    "description": "5-digit zip code prefix. Joins to customer and seller zip code columns."
+  },
+  "olist_geolocation_dataset.geolocation_lat": {
+    "data_type": "REAL",
+    "nullable": false,
+    "unique_count": 717360,
+    "sample_values": [
+      "-23.54562128115268",
+      "-23.54608112703553",
+      "-23.54612896641469",
+      "-23.5443921648681",
+      "-23.541577961711493"
+    ],
+    "min_value": "-36.6053744107061",
+    "max_value": "45.06593318269697",
+    "description": "Latitude coordinate for the zip code prefix."
+  },
+  "olist_geolocation_dataset.geolocation_lng": {
+    "data_type": "REAL",
+    "nullable": false,
+    "unique_count": 717613,
+    "sample_values": [
+      "-46.63929204800168",
+      "-46.64482029837157",
+      "-46.64295148361138",
+      "-46.63949930627844",
+      "-46.64160722329613"
+    ],
+    "min_value": "-101.46676644931476",
+    "max_value": "121.10539381057764",
+    "description": "Longitude coordinate for the zip code prefix."
+  },
+  "olist_geolocation_dataset.geolocation_city": {
+    "data_type": "TEXT",
+    "nullable": false,
+    "unique_count": 8011,
+    "sample_values": [
+      "sao paulo",
+      "são paulo",
+      "sao bernardo do campo",
+      "jundiaí",
+      "taboão da serra"
+    ],
+    "min_value": null,
+    "max_value": null,
+    "description": "City name for this zip code prefix."
+  },
+  "olist_geolocation_dataset.geolocation_state": {
+    "data_type": "TEXT",
+    "nullable": false,
+    "unique_count": 27,
+    "sample_values": [
+      "SP",
+      "RN",
+      "AC",
+      "RJ",
+      "ES"
+    ],
+    "min_value": null,
+    "max_value": null,
+    "description": "Brazilian state abbreviation."
+  },
+  "olist_order_items_dataset.order_id": {
+    "data_type": "TEXT",
+    "nullable": false,
+    "unique_count": 98666,
+    "sample_values": [
+      "00010242fe8c5a6d1ba2dd792cb16214",
+      "00018f77f2f0320c557190d7a144bdd3",
+      "000229ec398224ef6ca0657da4fc703e",
+      "00024acbcdf0a6daa1e931b038114c75",
+      "00042b26cf59d7ce69dfabb4e55b4fd9"
+    ],
+    "min_value": null,
+    "max_value": null,
+    "description": "Foreign key to olist_orders_dataset. An order can have multiple rows here (one per item)."
+  },
+  "olist_order_items_dataset.order_item_id": {
+    "data_type": "INTEGER",
+    "nullable": false,
+    "unique_count": 21,
+    "sample_values": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5"
+    ],
+    "min_value": "1",
+    "max_value": "21",
+    "description": "Sequential item number within the order (1, 2, 3...)."
+  },
+  "olist_order_items_dataset.product_id": {
+    "data_type": "TEXT",
+    "nullable": false,
+    "unique_count": 32951,
+    "sample_values": [
+      "00066f42aeeb9f3007548bb9d3f33c38",
+      "00088930e925c41fd95ebfe695fd2655",
+      "0009406fd7479715e4bef61dd91f2462",
+      "000b8f95fcb9e0096488278317764d19",
+      "000d9be29b5207b54e86aa1b1ac54872"
+    ],
+    "min_value": null,
+    "max_value": null,
+    "description": "Foreign key to olist_products_dataset."
+  },
+  "olist_order_items_dataset.seller_id": {
+    "data_type": "TEXT",
+    "nullable": false,
+    "unique_count": 3095,
+    "sample_values": [
+      "0015a82c2db000af6aaaf3ae2ecb0532",
+      "001cca7ae9ae17fb1caed9dfb1094831",
+      "001e6ad469a905060d959994f1b41e4f",
+      "002100f778ceb8431b7a1020ff7ab48f",
+      "003554e2dce176b5555353e4f3555ac8"
+    ],
+    "min_value": null,
+    "max_value": null,
+    "description": "Foreign key to olist_sellers_dataset."
+  },
+  "olist_order_items_dataset.shipping_limit_date": {
+    "data_type": "TEXT",
+    "nullable": false,
+    "unique_count": 93318,
+    "sample_values": [
+      "2017-09-19 09:45:35",
+      "2017-05-03 11:05:13",
+      "2018-01-18 14:48:30",
+      "2018-08-15 10:10:18",
+      "2017-02-13 13:57:51"
+    ],
+    "min_value": "2016-09-19 00:15:34",
+    "max_value": "2020-04-09 22:35:08",
+    "description": "Deadline for the seller to hand the item to the carrier."
+  },
+  "olist_order_items_dataset.price": {
+    "data_type": "REAL",
+    "nullable": false,
+    "unique_count": 5968,
+    "sample_values": [
+      "58.9",
+      "239.9",
+      "199.0",
+      "12.99",
+      "199.9"
+    ],
+    "min_value": "0.85",
+    "max_value": "6735.0",
+    "description": "Item price in BRL. Does not include freight."
+  },
+  "olist_order_items_dataset.freight_value": {
+    "data_type": "REAL",
+    "nullable": false,
+    "unique_count": 6999,
+    "sample_values": [
+      "13.29",
+      "19.93",
+      "17.87",
+      "12.79",
+      "18.14"
+    ],
+    "min_value": "0.0",
+    "max_value": "409.68",
+    "description": "Freight cost for this item in BRL."
+  },
+  "olist_order_payments_dataset.order_id": {
+    "data_type": "TEXT",
+    "nullable": false,
+    "unique_count": 99440,
+    "sample_values": [
+      "00010242fe8c5a6d1ba2dd792cb16214",
+      "00018f77f2f0320c557190d7a144bdd3",
+      "000229ec398224ef6ca0657da4fc703e",
+      "00024acbcdf0a6daa1e931b038114c75",
+      "00042b26cf59d7ce69dfabb4e55b4fd9"
+    ],
+    "min_value": null,
+    "max_value": null,
+    "description": "Foreign key to olist_orders_dataset. An order can have multiple payment rows."
+  },
+  "olist_order_payments_dataset.payment_sequential": {
+    "data_type": "INTEGER",
+    "nullable": false,
+    "unique_count": 29,
+    "sample_values": [
+      "1",
+      "2",
+      "4",
+      "5",
+      "3"
+    ],
+    "min_value": "1",
+    "max_value": "29",
+    "description": "Sequence number when multiple payment methods are used for one order."
+  },
+  "olist_order_payments_dataset.payment_type": {
+    "data_type": "TEXT",
+    "nullable": false,
+    "unique_count": 5,
+    "sample_values": [
+      "credit_card",
+      "boleto",
+      "voucher",
+      "debit_card",
+      "not_defined"
+    ],
+    "min_value": null,
+    "max_value": null,
+    "description": "Payment method. Values: credit_card, boleto, voucher, debit_card."
+  },
+  "olist_order_payments_dataset.payment_installments": {
+    "data_type": "INTEGER",
+    "nullable": false,
+    "unique_count": 24,
+    "sample_values": [
+      "8",
+      "1",
+      "2",
+      "3",
+      "6"
+    ],
+    "min_value": "0",
+    "max_value": "24",
+    "description": "Number of installments chosen. Credit card purchases are often in multiple installments in Brazil."
+  },
+  "olist_order_payments_dataset.payment_value": {
+    "data_type": "REAL",
+    "nullable": false,
+    "unique_count": 29077,
+    "sample_values": [
+      "99.33",
+      "24.39",
+      "65.71",
+      "107.78",
+      "128.45"
+    ],
+    "min_value": "0.0",
+    "max_value": "13664.08",
+    "description": "Amount paid in BRL. Use SUM(payment_value) for total order revenue."
+  },
+  "olist_order_reviews_dataset.review_id": {
+    "data_type": "TEXT",
+    "nullable": false,
+    "unique_count": 98410,
+    "sample_values": [
+      "0001239bc1de2e33cb583967c2ca4c67",
+      "0001cc6860aeaf5b9017fe4131a52e62",
+      "00020c7512a52e92212f12d3e37513c0",
+      "00032b0141443497c898b3093690af51",
+      "00034d88989f9a4c393bdcaec301537f"
+    ],
+    "min_value": null,
+    "max_value": null,
+    "description": "Unique review identifier."
+  },
+  "olist_order_reviews_dataset.order_id": {
+    "data_type": "TEXT",
+    "nullable": false,
+    "unique_count": 98673,
+    "sample_values": [
+      "00010242fe8c5a6d1ba2dd792cb16214",
+      "00018f77f2f0320c557190d7a144bdd3",
+      "000229ec398224ef6ca0657da4fc703e",
+      "00024acbcdf0a6daa1e931b038114c75",
+      "00042b26cf59d7ce69dfabb4e55b4fd9"
+    ],
+    "min_value": null,
+    "max_value": null,
+    "description": "Foreign key to olist_orders_dataset."
+  },
+  "olist_order_reviews_dataset.review_score": {
+    "data_type": "INTEGER",
+    "nullable": false,
+    "unique_count": 5,
+    "sample_values": [
+      "4",
+      "5",
+      "1",
+      "3",
+      "2"
+    ],
+    "min_value": "1",
+    "max_value": "5",
+    "description": "Customer satisfaction score from 1 (worst) to 5 (best). Dataset average ≈ 4.0."
+  },
+  "olist_order_reviews_dataset.review_comment_title": {
+    "data_type": "TEXT",
+    "nullable": true,
+    "unique_count": 4527,
+    "sample_values": [
+      "recomendo",
+      "Super recomendo",
+      "Não chegou meu produto ",
+      "Ótimo",
+      "Muito bom."
+    ],
+    "min_value": null,
+    "max_value": null,
+    "description": "Optional short title for the review."
+  },
+  "olist_order_reviews_dataset.review_comment_message": {
+    "data_type": "TEXT",
+    "nullable": true,
+    "unique_count": 36159,
+    "sample_values": [
+      "Recebi bem antes do prazo estipulado.",
+      "Parabéns lojas lannister adorei comprar pela Internet seguro e prático Parabéns a todos feliz Páscoa",
+      "aparelho eficiente. no site a marca do aparelho esta impresso como 3desinfector e ao chegar esta com outro nome...atualizar com a marca correta uma vez que é o mesmo aparelho",
+      "Mas um pouco ,travando...pelo valor ta Boa.\r\n",
+      "Vendedor confiável, produto ok e entrega antes do prazo."
+    ],
+    "min_value": null,
+    "max_value": null,
+    "description": "Optional detailed review message from the customer."
+  },
+  "olist_order_reviews_dataset.review_creation_date": {
+    "data_type": "TEXT",
+    "nullable": false,
+    "unique_count": 636,
+    "sample_values": [
+      "2018-01-18 00:00:00",
+      "2018-03-10 00:00:00",
+      "2018-02-17 00:00:00",
+      "2017-04-21 00:00:00",
+      "2018-03-01 00:00:00"
+    ],
+    "min_value": "2016-10-02 00:00:00",
+    "max_value": "2018-08-31 00:00:00",
+    "description": "Date when the review was created."
+  },
+  "olist_order_reviews_dataset.review_answer_timestamp": {
+    "data_type": "TEXT",
+    "nullable": false,
+    "unique_count": 98248,
+    "sample_values": [
+      "2018-01-18 21:46:59",
+      "2018-03-11 03:05:13",
+      "2018-02-18 14:36:24",
+      "2017-04-21 22:02:06",
+      "2018-03-02 10:26:53"
+    ],
+    "min_value": "2016-10-07 18:32:28",
+    "max_value": "2018-10-29 12:27:35",
+    "description": "Timestamp when the review survey was answered."
+  },
+  "olist_orders_dataset.order_id": {
+    "data_type": "TEXT",
+    "nullable": false,
+    "unique_count": 99441,
+    "sample_values": [
+      "00010242fe8c5a6d1ba2dd792cb16214",
+      "00018f77f2f0320c557190d7a144bdd3",
+      "000229ec398224ef6ca0657da4fc703e",
+      "00024acbcdf0a6daa1e931b038114c75",
+      "00042b26cf59d7ce69dfabb4e55b4fd9"
+    ],
+    "min_value": null,
+    "max_value": null,
+    "description": "Unique identifier for each order. Primary key. Used to join to all other order-related tables."
+  },
+  "olist_orders_dataset.customer_id": {
+    "data_type": "TEXT",
+    "nullable": false,
+    "unique_count": 99441,
+    "sample_values": [
+      "00012a2ce6f8dcda20d059ce98491703",
+      "000161a058600d5901f007fab4c27140",
+      "0001fd6190edaaf884bcaf3d49edf079",
+      "0002414f95344307404f0ace7a26f1d5",
+      "000379cdec625522490c315e70c7a9fb"
+    ],
+    "min_value": null,
+    "max_value": null,
+    "description": "Per-order customer identifier. Foreign key to olist_customers_dataset.customer_id. NOT the unique customer — use customer_unique_id for that."
+  },
+  "olist_orders_dataset.order_status": {
+    "data_type": "TEXT",
+    "nullable": false,
+    "unique_count": 8,
+    "sample_values": [
+      "delivered",
+      "invoiced",
+      "shipped",
+      "processing",
+      "unavailable"
+    ],
+    "min_value": null,
+    "max_value": null,
+    "description": "Current status of the order. Values: delivered, shipped, canceled, processing, invoiced, unavailable, approved, created."
+  },
+  "olist_orders_dataset.order_purchase_timestamp": {
+    "data_type": "TEXT",
+    "nullable": false,
+    "unique_count": 98875,
+    "sample_values": [
+      "2017-10-02 10:56:33",
+      "2018-07-24 20:41:37",
+      "2018-08-08 08:38:49",
+      "2017-11-18 19:28:06",
+      "2018-02-13 21:18:39"
+    ],
+    "min_value": "2016-09-04 21:15:19",
+    "max_value": "2018-10-17 17:30:18",
+    "description": "Timestamp when the customer placed the order."
+  },
+  "olist_orders_dataset.order_approved_at": {
+    "data_type": "TEXT",
+    "nullable": true,
+    "unique_count": 90733,
+    "sample_values": [
+      "2017-10-02 11:07:15",
+      "2018-07-26 03:24:27",
+      "2018-08-08 08:55:23",
+      "2017-11-18 19:45:59",
+      "2018-02-13 22:20:29"
+    ],
+    "min_value": "2016-09-15 12:16:38",
+    "max_value": "2018-09-03 17:40:06",
+    "description": "Timestamp when payment was approved."
+  },
+  "olist_orders_dataset.order_delivered_carrier_date": {
+    "data_type": "TEXT",
+    "nullable": true,
+    "unique_count": 81018,
+    "sample_values": [
+      "2017-10-04 19:55:00",
+      "2018-07-26 14:31:00",
+      "2018-08-08 13:50:00",
+      "2017-11-22 13:39:59",
+      "2018-02-14 19:46:34"
+    ],
+    "min_value": "2016-10-08 10:34:01",
+    "max_value": "2018-09-11 19:48:28",
+    "description": "Timestamp when the order was handed to the logistics carrier."
+  },
+  "olist_orders_dataset.order_delivered_customer_date": {
+    "data_type": "TEXT",
+    "nullable": true,
+    "unique_count": 95664,
+    "sample_values": [
+      "2017-10-10 21:25:13",
+      "2018-08-07 15:27:45",
+      "2018-08-17 18:06:29",
+      "2017-12-02 00:28:42",
+      "2018-02-16 18:17:02"
+    ],
+    "min_value": "2016-10-11 13:46:32",
+    "max_value": "2018-10-17 13:22:46",
+    "description": "Actual delivery timestamp to the customer."
+  },
+  "olist_orders_dataset.order_estimated_delivery_date": {
+    "data_type": "TEXT",
+    "nullable": false,
+    "unique_count": 459,
+    "sample_values": [
+      "2017-10-18 00:00:00",
+      "2018-08-13 00:00:00",
+      "2018-09-04 00:00:00",
+      "2017-12-15 00:00:00",
+      "2018-02-26 00:00:00"
+    ],
+    "min_value": "2016-09-30 00:00:00",
+    "max_value": "2018-11-12 00:00:00",
+    "description": "Estimated delivery date shown to customer at time of purchase."
+  },
+  "olist_products_dataset.product_id": {
+    "data_type": "TEXT",
+    "nullable": false,
+    "unique_count": 32951,
+    "sample_values": [
+      "00066f42aeeb9f3007548bb9d3f33c38",
+      "00088930e925c41fd95ebfe695fd2655",
+      "0009406fd7479715e4bef61dd91f2462",
+      "000b8f95fcb9e0096488278317764d19",
+      "000d9be29b5207b54e86aa1b1ac54872"
+    ],
+    "min_value": null,
+    "max_value": null,
+    "description": "Unique product identifier. Primary key."
+  },
+  "olist_products_dataset.product_category_name": {
+    "data_type": "TEXT",
+    "nullable": true,
+    "unique_count": 71,
+    "sample_values": [
+      "perfumery",
+      "art",
+      "sports_leisure",
+      "baby",
+      "housewares"
+    ],
+    "min_value": null,
+    "max_value": null,
+    "description": "Product category name in English."
+  },
+  "olist_products_dataset.product_name_lenght": {
+    "data_type": "REAL",
+    "nullable": true,
+    "unique_count": 66,
+    "sample_values": [
+      "40.0",
+      "44.0",
+      "46.0",
+      "27.0",
+      "37.0"
+    ],
+    "min_value": "5.0",
+    "max_value": "76.0",
+    "description": "Character length of the product name (note: original column has typo 'lenght')."
+  },
+  "olist_products_dataset.product_description_lenght": {
+    "data_type": "REAL",
+    "nullable": true,
+    "unique_count": 2960,
+    "sample_values": [
+      "287.0",
+      "276.0",
+      "250.0",
+      "261.0",
+      "402.0"
+    ],
+    "min_value": "4.0",
+    "max_value": "3992.0",
+    "description": "Character length of the product description."
+  },
+  "olist_products_dataset.product_photos_qty": {
+    "data_type": "REAL",
+    "nullable": true,
+    "unique_count": 19,
+    "sample_values": [
+      "1.0",
+      "4.0",
+      "2.0",
+      "3.0",
+      "5.0"
+    ],
+    "min_value": "1.0",
+    "max_value": "20.0",
+    "description": "Number of product photos listed."
+  },
+  "olist_products_dataset.product_weight_g": {
+    "data_type": "REAL",
+    "nullable": true,
+    "unique_count": 2204,
+    "sample_values": [
+      "225.0",
+      "1000.0",
+      "154.0",
+      "371.0",
+      "625.0"
+    ],
+    "min_value": "0.0",
+    "max_value": "40425.0",
+    "description": "Product weight in grams."
+  },
+  "olist_products_dataset.product_length_cm": {
+    "data_type": "REAL",
+    "nullable": true,
+    "unique_count": 99,
+    "sample_values": [
+      "16.0",
+      "30.0",
+      "18.0",
+      "26.0",
+      "20.0"
+    ],
+    "min_value": "7.0",
+    "max_value": "105.0",
+    "description": "Product length in centimeters."
+  },
+  "olist_products_dataset.product_height_cm": {
+    "data_type": "REAL",
+    "nullable": true,
+    "unique_count": 102,
+    "sample_values": [
+      "10.0",
+      "18.0",
+      "9.0",
+      "4.0",
+      "17.0"
+    ],
+    "min_value": "2.0",
+    "max_value": "105.0",
+    "description": "Product height in centimeters."
+  },
+  "olist_products_dataset.product_width_cm": {
+    "data_type": "REAL",
+    "nullable": true,
+    "unique_count": 95,
+    "sample_values": [
+      "14.0",
+      "20.0",
+      "15.0",
+      "26.0",
+      "13.0"
+    ],
+    "min_value": "6.0",
+    "max_value": "118.0",
+    "description": "Product width in centimeters."
+  },
+  "olist_sellers_dataset.seller_id": {
+    "data_type": "TEXT",
+    "nullable": false,
+    "unique_count": 3095,
+    "sample_values": [
+      "0015a82c2db000af6aaaf3ae2ecb0532",
+      "001cca7ae9ae17fb1caed9dfb1094831",
+      "001e6ad469a905060d959994f1b41e4f",
+      "002100f778ceb8431b7a1020ff7ab48f",
+      "003554e2dce176b5555353e4f3555ac8"
+    ],
+    "min_value": null,
+    "max_value": null,
+    "description": "Unique seller identifier. Primary key."
+  },
+  "olist_sellers_dataset.seller_zip_code_prefix": {
+    "data_type": "INTEGER",
+    "nullable": false,
+    "unique_count": 2246,
+    "sample_values": [
+      "1001",
+      "1021",
+      "1022",
+      "1023",
+      "1026"
+    ],
+    "min_value": "1001",
+    "max_value": "99730",
+    "description": "5-digit zip code prefix for seller location."
+  },
+  "olist_sellers_dataset.seller_city": {
+    "data_type": "TEXT",
+    "nullable": false,
+    "unique_count": 611,
+    "sample_values": [
+      "campinas",
+      "mogi guacu",
+      "rio de janeiro",
+      "sao paulo",
+      "braganca paulista"
+    ],
+    "min_value": null,
+    "max_value": null,
+    "description": "City where the seller is located."
+  },
+  "olist_sellers_dataset.seller_state": {
+    "data_type": "TEXT",
+    "nullable": false,
+    "unique_count": 23,
+    "sample_values": [
+      "SP",
+      "RJ",
+      "PE",
+      "PR",
+      "GO"
+    ],
+    "min_value": null,
+    "max_value": null,
+    "description": "Brazilian state abbreviation for the seller."
+  }
+}

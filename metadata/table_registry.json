@@ -1,0 +1,385 @@
+{
+  "olist_customers_dataset": {
+    "table_name": "olist_customers_dataset",
+    "description": "Customer dimension table. customer_id is a per-order identifier; customer_unique_id is the true unique customer identifier. Always use customer_unique_id for counting unique customers. Includes customer location (city, state, zip code prefix).",
+    "row_count": 99441,
+    "columns": [
+      "customer_id",
+      "customer_unique_id",
+      "customer_zip_code_prefix",
+      "customer_city",
+      "customer_state"
+    ],
+    "primary_key_candidate": "customer_id",
+    "date_columns": [],
+    "numeric_columns": [
+      "customer_zip_code_prefix"
+    ],
+    "categorical_columns": [
+      "customer_id",
+      "customer_unique_id",
+      "customer_city",
+      "customer_state"
+    ],
+    "sample_values": {
+      "customer_id": [
+        "00012a2ce6f8dcda20d059ce98491703",
+        "000161a058600d5901f007fab4c27140",
+        "0001fd6190edaaf884bcaf3d49edf079",
+        "0002414f95344307404f0ace7a26f1d5",
+        "000379cdec625522490c315e70c7a9fb"
+      ],
+      "customer_unique_id": [
+        "0000366f3b9a7992bf8c76cfdf3221e2",
+        "0000b849f77a49e4a4ce2b2a4ca5be3f",
+        "0000f46a3911fa3c0805444483337064",
+        "0000f6ccb0745a6a4b88665a16c9f078",
+        "0004aac84e0df4da2b147fca70cf8255"
+      ],
+      "customer_city": [
+        "franca",
+        "sao bernardo do campo",
+        "sao paulo",
+        "mogi das cruzes",
+        "campinas"
+      ],
+      "customer_state": [
+        "SP",
+        "SC",
+        "MG",
+        "PR",
+        "RJ"
+      ]
+    }
+  },
+  "olist_geolocation_dataset": {
+    "table_name": "olist_geolocation_dataset",
+    "description": "Geographic lookup table mapping zip code prefixes to lat/lng coordinates. Used for mapping customer and seller locations. Joins to customers and sellers on zip_code_prefix.",
+    "row_count": 1000163,
+    "columns": [
+      "geolocation_zip_code_prefix",
+      "geolocation_lat",
+      "geolocation_lng",
+      "geolocation_city",
+      "geolocation_state"
+    ],
+    "primary_key_candidate": "geolocation_zip_code_prefix",
+    "date_columns": [],
+    "numeric_columns": [
+      "geolocation_zip_code_prefix",
+      "geolocation_lat",
+      "geolocation_lng"
+    ],
+    "categorical_columns": [
+      "geolocation_city",
+      "geolocation_state"
+    ],
+    "sample_values": {
+      "geolocation_city": [
+        "sao paulo",
+        "são paulo",
+        "sao bernardo do campo",
+        "jundiaí",
+        "taboão da serra"
+      ],
+      "geolocation_state": [
+        "SP",
+        "RN",
+        "AC",
+        "RJ",
+        "ES"
+      ]
+    }
+  },
+  "olist_order_items_dataset": {
+    "table_name": "olist_order_items_dataset",
+    "description": "Line-item table where each row is one product in an order. An order can have multiple items. Contains price and freight_value per item. Total order value = SUM(price) + SUM(freight_value) for all items in an order.",
+    "row_count": 112650,
+    "columns": [
+      "order_id",
+      "order_item_id",
+      "product_id",
+      "seller_id",
+      "shipping_limit_date",
+      "price",
+      "freight_value"
+    ],
+    "primary_key_candidate": "order_id",
+    "date_columns": [
+      "shipping_limit_date"
+    ],
+    "numeric_columns": [
+      "order_item_id",
+      "price",
+      "freight_value"
+    ],
+    "categorical_columns": [
+      "order_id",
+      "product_id",
+      "seller_id"
+    ],
+    "sample_values": {
+      "order_id": [
+        "00010242fe8c5a6d1ba2dd792cb16214",
+        "00018f77f2f0320c557190d7a144bdd3",
+        "000229ec398224ef6ca0657da4fc703e",
+        "00024acbcdf0a6daa1e931b038114c75",
+        "00042b26cf59d7ce69dfabb4e55b4fd9"
+      ],
+      "product_id": [
+        "00066f42aeeb9f3007548bb9d3f33c38",
+        "00088930e925c41fd95ebfe695fd2655",
+        "0009406fd7479715e4bef61dd91f2462",
+        "000b8f95fcb9e0096488278317764d19",
+        "000d9be29b5207b54e86aa1b1ac54872"
+      ],
+      "seller_id": [
+        "0015a82c2db000af6aaaf3ae2ecb0532",
+        "001cca7ae9ae17fb1caed9dfb1094831",
+        "001e6ad469a905060d959994f1b41e4f",
+        "002100f778ceb8431b7a1020ff7ab48f",
+        "003554e2dce176b5555353e4f3555ac8"
+      ]
+    }
+  },
+  "olist_order_payments_dataset": {
+    "table_name": "olist_order_payments_dataset",
+    "description": "Payment records for each order. An order can have multiple payment entries (e.g., split between credit card and voucher). payment_value is the authoritative revenue figure. Credit card is the most common payment type with the highest average order value.",
+    "row_count": 103886,
+    "columns": [
+      "order_id",
+      "payment_sequential",
+      "payment_type",
+      "payment_installments",
+      "payment_value"
+    ],
+    "primary_key_candidate": "order_id",
+    "date_columns": [],
+    "numeric_columns": [
+      "payment_sequential",
+      "payment_installments",
+      "payment_value"
+    ],
+    "categorical_columns": [
+      "order_id",
+      "payment_type"
+    ],
+    "sample_values": {
+      "order_id": [
+        "00010242fe8c5a6d1ba2dd792cb16214",
+        "00018f77f2f0320c557190d7a144bdd3",
+        "000229ec398224ef6ca0657da4fc703e",
+        "00024acbcdf0a6daa1e931b038114c75",
+        "00042b26cf59d7ce69dfabb4e55b4fd9"
+      ],
+      "payment_type": [
+        "credit_card",
+        "boleto",
+        "voucher",
+        "debit_card",
+        "not_defined"
+      ]
+    }
+  },
+  "olist_order_reviews_dataset": {
+    "table_name": "olist_order_reviews_dataset",
+    "description": "Customer review data linked to orders. review_score is 1–5; the dataset average is approximately 4.0. Contains optional review comment title and message. Used for customer satisfaction and NPS-style analysis.",
+    "row_count": 99224,
+    "columns": [
+      "review_id",
+      "order_id",
+      "review_score",
+      "review_comment_title",
+      "review_comment_message",
+      "review_creation_date",
+      "review_answer_timestamp"
+    ],
+    "primary_key_candidate": "review_id",
+    "date_columns": [
+      "review_creation_date",
+      "review_answer_timestamp"
+    ],
+    "numeric_columns": [
+      "review_score"
+    ],
+    "categorical_columns": [
+      "review_id",
+      "order_id",
+      "review_comment_title",
+      "review_comment_message"
+    ],
+    "sample_values": {
+      "review_id": [
+        "0001239bc1de2e33cb583967c2ca4c67",
+        "0001cc6860aeaf5b9017fe4131a52e62",
+        "00020c7512a52e92212f12d3e37513c0",
+        "00032b0141443497c898b3093690af51",
+        "00034d88989f9a4c393bdcaec301537f"
+      ],
+      "order_id": [
+        "00010242fe8c5a6d1ba2dd792cb16214",
+        "00018f77f2f0320c557190d7a144bdd3",
+        "000229ec398224ef6ca0657da4fc703e",
+        "00024acbcdf0a6daa1e931b038114c75",
+        "00042b26cf59d7ce69dfabb4e55b4fd9"
+      ],
+      "review_comment_title": [
+        "recomendo",
+        "Super recomendo",
+        "Não chegou meu produto ",
+        "Ótimo",
+        "Muito bom."
+      ],
+      "review_comment_message": [
+        "Recebi bem antes do prazo estipulado.",
+        "Parabéns lojas lannister adorei comprar pela Internet seguro e prático Parabéns a todos feliz Páscoa",
+        "aparelho eficiente. no site a marca do aparelho esta impresso como 3desinfector e ao chegar esta com outro nome...atualizar com a marca correta uma vez que é o mesmo aparelho",
+        "Mas um pouco ,travando...pelo valor ta Boa.\r\n",
+        "Vendedor confiável, produto ok e entrega antes do prazo."
+      ]
+    }
+  },
+  "olist_orders_dataset": {
+    "table_name": "olist_orders_dataset",
+    "description": "Central fact table containing all orders. Each row is one order. Links to customers, items, payments, and reviews. Includes order status (delivered, shipped, canceled, etc.) and timestamps from purchase to delivery. Data spans Sep 2016 – Oct 2018.",
+    "row_count": 99441,
+    "columns": [
+      "order_id",
+      "customer_id",
+      "order_status",
+      "order_purchase_timestamp",
+      "order_approved_at",
+      "order_delivered_carrier_date",
+      "order_delivered_customer_date",
+      "order_estimated_delivery_date"
+    ],
+    "primary_key_candidate": "order_id",
+    "date_columns": [
+      "order_purchase_timestamp",
+      "order_approved_at",
+      "order_delivered_carrier_date",
+      "order_delivered_customer_date",
+      "order_estimated_delivery_date"
+    ],
+    "numeric_columns": [],
+    "categorical_columns": [
+      "order_id",
+      "customer_id",
+      "order_status"
+    ],
+    "sample_values": {
+      "order_id": [
+        "00010242fe8c5a6d1ba2dd792cb16214",
+        "00018f77f2f0320c557190d7a144bdd3",
+        "000229ec398224ef6ca0657da4fc703e",
+        "00024acbcdf0a6daa1e931b038114c75",
+        "00042b26cf59d7ce69dfabb4e55b4fd9"
+      ],
+      "customer_id": [
+        "00012a2ce6f8dcda20d059ce98491703",
+        "000161a058600d5901f007fab4c27140",
+        "0001fd6190edaaf884bcaf3d49edf079",
+        "0002414f95344307404f0ace7a26f1d5",
+        "000379cdec625522490c315e70c7a9fb"
+      ],
+      "order_status": [
+        "delivered",
+        "invoiced",
+        "shipped",
+        "processing",
+        "unavailable"
+      ]
+    }
+  },
+  "olist_products_dataset": {
+    "table_name": "olist_products_dataset",
+    "description": "Product catalog with dimensions, weight, and category information. Product category names are in English. Used to analyze assortment, category mix, and physical product attributes.",
+    "row_count": 32951,
+    "columns": [
+      "product_id",
+      "product_category_name",
+      "product_name_lenght",
+      "product_description_lenght",
+      "product_photos_qty",
+      "product_weight_g",
+      "product_length_cm",
+      "product_height_cm",
+      "product_width_cm"
+    ],
+    "primary_key_candidate": "product_id",
+    "date_columns": [],
+    "numeric_columns": [
+      "product_name_lenght",
+      "product_description_lenght",
+      "product_photos_qty",
+      "product_weight_g",
+      "product_length_cm",
+      "product_height_cm",
+      "product_width_cm"
+    ],
+    "categorical_columns": [
+      "product_id",
+      "product_category_name"
+    ],
+    "sample_values": {
+      "product_id": [
+        "00066f42aeeb9f3007548bb9d3f33c38",
+        "00088930e925c41fd95ebfe695fd2655",
+        "0009406fd7479715e4bef61dd91f2462",
+        "000b8f95fcb9e0096488278317764d19",
+        "000d9be29b5207b54e86aa1b1ac54872"
+      ],
+      "product_category_name": [
+        "perfumery",
+        "art",
+        "sports_leisure",
+        "baby",
+        "housewares"
+      ]
+    }
+  },
+  "olist_sellers_dataset": {
+    "table_name": "olist_sellers_dataset",
+    "description": "Seller/vendor dimension table. Contains seller location data (city, state, zip code prefix). Used for seller performance analysis and geographic distribution of sellers.",
+    "row_count": 3095,
+    "columns": [
+      "seller_id",
+      "seller_zip_code_prefix",
+      "seller_city",
+      "seller_state"
+    ],
+    "primary_key_candidate": "seller_id",
+    "date_columns": [],
+    "numeric_columns": [
+      "seller_zip_code_prefix"
+    ],
+    "categorical_columns": [
+      "seller_id",
+      "seller_city",
+      "seller_state"
+    ],
+    "sample_values": {
+      "seller_id": [
+        "0015a82c2db000af6aaaf3ae2ecb0532",
+        "001cca7ae9ae17fb1caed9dfb1094831",
+        "001e6ad469a905060d959994f1b41e4f",
+        "002100f778ceb8431b7a1020ff7ab48f",
+        "003554e2dce176b5555353e4f3555ac8"
+      ],
+      "seller_city": [
+        "campinas",
+        "mogi guacu",
+        "rio de janeiro",
+        "sao paulo",
+        "braganca paulista"
+      ],
+      "seller_state": [
+        "SP",
+        "RJ",
+        "PE",
+        "PR",
+        "GO"
+      ]
+    }
+  }
+}
