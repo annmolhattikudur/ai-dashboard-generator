@@ -2,11 +2,14 @@
 
 **Natural language to insights — powered by RAG + Agentic AI**
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-ai--dashboardgenerator.streamlit.app-FF4B4B?style=flat-square&logo=streamlit)](https://ai-dashboardgenerator.streamlit.app)
 ![Python 3.11](https://img.shields.io/badge/Python-3.11-blue?style=flat-square&logo=python)
 ![Claude API](https://img.shields.io/badge/Claude_API-Anthropic-orange?style=flat-square)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.32+-red?style=flat-square&logo=streamlit)
 ![Power BI MCP](https://img.shields.io/badge/Power_BI-MCP_Ready-yellow?style=flat-square&logo=powerbi)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
+
+> **[🚀 Live Demo → ai-dashboardgenerator.streamlit.app](https://ai-dashboardgenerator.streamlit.app)**
 
 ---
 
