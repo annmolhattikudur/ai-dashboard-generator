@@ -143,6 +143,110 @@
       "sql_used": "-- Top 3 product categories by sales (revenue) in March 2018\nSELECT \n    pr.product_category_name AS category,\n    ROUND(SUM(p.payment_value), 2) AS total_sales\nFROM olist_order_payments_dataset p\nINNER JOIN olist_orders_dataset o ON p.order_id = o.order_id\nINNER JOIN olist_order_items_dataset i ON o.order_id = i.order_id  \nINNER JOIN olist_products_dataset pr ON i.product_id = pr.product_id\nWHERE o.order_status NOT IN ('canceled', 'unavailable')  -- Exclude non-completed orders\n    AND strftime('%Y-%m', o.order_purchase_timestamp) = '2018-03'  -- March 2018 filter\nGROUP BY pr.product_category_name\nORDER BY total_sales DESC\nLIMIT 3;",
       "was_helpful": true,
       "timestamp": "2026-03-24T16:52:10.123374"
+    },
+    {
+      "id": "uc_009",
+      "user_question": "Create a sales dashboard showing monthly revenue trend for the year 2017, top 10 product categories by sales in the year 2017, and region based sales performance",
+      "tables_recommended": [
+        "olist_order_payments_dataset",
+        "olist_orders_dataset",
+        "olist_order_items_dataset",
+        "olist_products_dataset",
+        "olist_customers_dataset"
+      ],
+      "tables_actually_used": [
+        "olist_order_payments_dataset",
+        "olist_orders_dataset",
+        "olist_order_items_dataset",
+        "olist_products_dataset",
+        "olist_customers_dataset"
+      ],
+      "sql_generated": "SELECT \n  strftime('%Y-%m', o.order_purchase_timestamp) as month,\n  SUM(p.payment_value) as revenue,\n  'monthly_trend' as metric_type\nFROM olist_order_payments_dataset p\nJOIN olist_orders_dataset o ON p.order_id = o.order_id\nWHERE o.order_status NOT IN ('canceled', 'unavailable')\n  AND strftime('%Y', o.order_purchase_timestamp) = '2017'\nGROUP BY month\n\nUNION ALL\n\nSELECT \n  pr.product_category_name as category,\n  SUM(p.payment_value) as revenue,\n  'top_categories' as metric_type\nFROM olist_order_payments_dataset p\nJOIN olist_orders_dataset o ON p.order_id = o.order_id\nJOIN olist_order_items_dataset i ON o.order_id = i.order_id\nJOIN olist_products_dataset pr ON i.product_id = pr.product_id\nWHERE o.order_status NOT IN ('canceled', 'unavailable')\n  AND strftime('%Y', o.order_purchase_timestamp) = '2017'\nGROUP BY pr.product_category_name\nORDER BY revenue DESC\nLIMIT 10;",
+      "sql_used": "SELECT \n  strftime('%Y-%m', o.order_purchase_timestamp) as month,\n  SUM(p.payment_value) as revenue,\n  'monthly_trend' as metric_type\nFROM olist_order_payments_dataset p\nJOIN olist_orders_dataset o ON p.order_id = o.order_id\nWHERE o.order_status NOT IN ('canceled', 'unavailable')\n  AND strftime('%Y', o.order_purchase_timestamp) = '2017'\nGROUP BY month\n\nUNION ALL\n\nSELECT \n  pr.product_category_name as category,\n  SUM(p.payment_value) as revenue,\n  'top_categories' as metric_type\nFROM olist_order_payments_dataset p\nJOIN olist_orders_dataset o ON p.order_id = o.order_id\nJOIN olist_order_items_dataset i ON o.order_id = i.order_id\nJOIN olist_products_dataset pr ON i.product_id = pr.product_id\nWHERE o.order_status NOT IN ('canceled', 'unavailable')\n  AND strftime('%Y', o.order_purchase_timestamp) = '2017'\nGROUP BY pr.product_category_name\nORDER BY revenue DESC\nLIMIT 10;",
+      "was_helpful": null,
+      "timestamp": "2026-03-25T00:34:53.435425"
+    },
+    {
+      "id": "uc_010",
+      "user_question": "monthly revenue trend for the year 2017",
+      "tables_recommended": [
+        "olist_orders_dataset",
+        "olist_order_payments_dataset"
+      ],
+      "tables_actually_used": [
+        "olist_orders_dataset",
+        "olist_order_payments_dataset"
+      ],
+      "sql_generated": "SELECT \n    strftime('%Y-%m', o.order_purchase_timestamp) as month,\n    ROUND(SUM(p.payment_value), 2) as revenue\nFROM olist_order_payments_dataset p\nINNER JOIN olist_orders_dataset o ON p.order_id = o.order_id\nWHERE o.order_status NOT IN ('canceled', 'unavailable')\n    AND strftime('%Y', o.order_purchase_timestamp) = '2017'\nGROUP BY strftime('%Y-%m', o.order_purchase_timestamp)\nORDER BY month;",
+      "sql_used": "SELECT \n    strftime('%Y-%m', o.order_purchase_timestamp) as month,\n    ROUND(SUM(p.payment_value), 2) as revenue\nFROM olist_order_payments_dataset p\nINNER JOIN olist_orders_dataset o ON p.order_id = o.order_id\nWHERE o.order_status NOT IN ('canceled', 'unavailable')\n    AND strftime('%Y', o.order_purchase_timestamp) = '2017'\nGROUP BY strftime('%Y-%m', o.order_purchase_timestamp)\nORDER BY month;",
+      "was_helpful": true,
+      "timestamp": "2026-03-25T00:40:05.741085"
+    },
+    {
+      "id": "uc_011",
+      "user_question": "Show me the sales growth for Sep 2018",
+      "tables_recommended": [
+        "olist_orders_dataset",
+        "olist_order_payments_dataset"
+      ],
+      "tables_actually_used": [
+        "olist_orders_dataset",
+        "olist_order_payments_dataset"
+      ],
+      "sql_generated": "SELECT \n  ROUND(current_revenue, 2) AS current_revenue,\n  ROUND(prior_revenue, 2) AS prior_revenue,\n  ROUND((current_revenue - prior_revenue) / prior_revenue * 100, 2) AS growth_pct\nFROM (\n  SELECT \n    (SELECT SUM(p.payment_value) \n     FROM olist_order_payments_dataset p \n     JOIN olist_orders_dataset o ON p.order_id = o.order_id \n     WHERE o.order_status NOT IN ('canceled','unavailable') \n     AND strftime('%Y-%m', o.order_purchase_timestamp) = '2018-09') AS current_revenue,\n    (SELECT SUM(p.payment_value) \n     FROM olist_order_payments_dataset p \n     JOIN olist_orders_dataset o ON p.order_id = o.order_id \n     WHERE o.order_status NOT IN ('canceled','unavailable') \n     AND strftime('%Y-%m', o.order_purchase_timestamp) = '2017-09') AS prior_revenue\n)",
+      "sql_used": "SELECT \n  ROUND(current_revenue, 2) AS current_revenue,\n  ROUND(prior_revenue, 2) AS prior_revenue,\n  ROUND((current_revenue - prior_revenue) / prior_revenue * 100, 2) AS growth_pct\nFROM (\n  SELECT \n    (SELECT SUM(p.payment_value) \n     FROM olist_order_payments_dataset p \n     JOIN olist_orders_dataset o ON p.order_id = o.order_id \n     WHERE o.order_status NOT IN ('canceled','unavailable') \n     AND strftime('%Y-%m', o.order_purchase_timestamp) = '2018-09') AS current_revenue,\n    (SELECT SUM(p.payment_value) \n     FROM olist_order_payments_dataset p \n     JOIN olist_orders_dataset o ON p.order_id = o.order_id \n     WHERE o.order_status NOT IN ('canceled','unavailable') \n     AND strftime('%Y-%m', o.order_purchase_timestamp) = '2017-09') AS prior_revenue\n)",
+      "was_helpful": true,
+      "timestamp": "2026-03-25T01:10:43.333611"
+    },
+    {
+      "id": "uc_012",
+      "user_question": "Show me top 5 areas by sales",
+      "tables_recommended": [
+        "olist_order_payments_dataset",
+        "olist_orders_dataset",
+        "olist_customers_dataset"
+      ],
+      "tables_actually_used": [
+        "olist_order_payments_dataset",
+        "olist_orders_dataset",
+        "olist_customers_dataset"
+      ],
+      "sql_generated": "SELECT \n    c.customer_state as area,\n    ROUND(SUM(p.payment_value), 2) as total_sales\nFROM olist_order_payments_dataset p\nJOIN olist_orders_dataset o ON p.order_id = o.order_id\nJOIN olist_customers_dataset c ON o.customer_id = c.customer_id\nWHERE o.order_status NOT IN ('canceled', 'unavailable')\nGROUP BY c.customer_state\nORDER BY total_sales DESC\nLIMIT 5;",
+      "sql_used": "SELECT \n    c.customer_state as area,\n    ROUND(SUM(p.payment_value), 2) as total_sales\nFROM olist_order_payments_dataset p\nJOIN olist_orders_dataset o ON p.order_id = o.order_id\nJOIN olist_customers_dataset c ON o.customer_id = c.customer_id\nWHERE o.order_status NOT IN ('canceled', 'unavailable')\nGROUP BY c.customer_state\nORDER BY total_sales DESC\nLIMIT 5;",
+      "was_helpful": true,
+      "timestamp": "2026-03-25T01:11:15.433823"
+    },
+    {
+      "id": "uc_013",
+      "user_question": "Show me the assortment trend for the year 2017",
+      "tables_recommended": [
+        "olist_orders_dataset",
+        "olist_order_items_dataset",
+        "olist_customers_dataset"
+      ],
+      "tables_actually_used": [
+        "olist_orders_dataset",
+        "olist_order_items_dataset",
+        "olist_customers_dataset"
+      ],
+      "sql_generated": "SELECT \n    strftime('%Y-%m', o.order_purchase_timestamp) as month,\n    COUNT(DISTINCT i.product_id || '_' || o.customer_id) as assortment\nFROM olist_order_items_dataset i\nJOIN olist_orders_dataset o ON i.order_id = o.order_id\nWHERE o.order_status NOT IN ('canceled', 'unavailable')\n    AND strftime('%Y', o.order_purchase_timestamp) = '2017'\nGROUP BY month\nORDER BY month;",
+      "sql_used": "SELECT \n    strftime('%Y-%m', o.order_purchase_timestamp) as month,\n    COUNT(DISTINCT i.product_id || '_' || o.customer_id) as assortment\nFROM olist_order_items_dataset i\nJOIN olist_orders_dataset o ON i.order_id = o.order_id\nWHERE o.order_status NOT IN ('canceled', 'unavailable')\n    AND strftime('%Y', o.order_purchase_timestamp) = '2017'\nGROUP BY month\nORDER BY month;",
+      "was_helpful": null,
+      "timestamp": "2026-03-25T01:39:24.715730"
+    },
+    {
+      "id": "uc_014",
+      "user_question": "What is the count of orders delivered for each month of year 2017?",
+      "tables_recommended": [
+        "olist_orders_dataset"
+      ],
+      "tables_actually_used": [
+        "olist_orders_dataset"
+      ],
+      "sql_generated": "SELECT \n    strftime('%Y-%m', o.order_purchase_timestamp) as month,\n    COUNT(DISTINCT o.order_id) as orders_delivered\nFROM olist_orders_dataset o\nWHERE o.order_status = 'delivered'\n    AND strftime('%Y', o.order_purchase_timestamp) = '2017'\nGROUP BY strftime('%Y-%m', o.order_purchase_timestamp)\nORDER BY month;",
+      "sql_used": "SELECT \n    strftime('%Y-%m', o.order_purchase_timestamp) as month,\n    COUNT(DISTINCT o.order_id) as orders_delivered\nFROM olist_orders_dataset o\nWHERE o.order_status = 'delivered'\n    AND strftime('%Y', o.order_purchase_timestamp) = '2017'\nGROUP BY strftime('%Y-%m', o.order_purchase_timestamp)\nORDER BY month;",
+      "was_helpful": true,
+      "timestamp": "2026-03-25T02:40:00.112994"
     }
   ]
 }

@@ -26,12 +26,13 @@ import sys
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 
-from agents.orchestrator import process_query
+from agents.orchestrator import process_query, process_multi_query
 from config import (
     TABLE_REGISTRY_PATH,
     DATA_DICTIONARY_PATH,
     RELATIONSHIPS_PATH,
     USE_CASE_LOG_PATH,
+    APP_PASSWORD,
 )
 from powerbi.export_handler import (
     export_to_excel_bytes,
@@ -271,6 +272,8 @@ def _init_state():
         # Shared
         "prefill_question": "",
         "prefill_tab": "quick",
+        # Access control
+        "auth_verified": False,
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -303,10 +306,246 @@ def _confidence_badge(result: dict) -> str:
 
 
 def _run_query(question: str, override_tables: list | None = None) -> dict:
-    """Run the orchestrator and cache result in session state."""
+    """Run the orchestrator for a single question (used for per-chart re-runs)."""
     with st.spinner("Thinking... running all three agents..."):
         result = process_query(question, override_tables=override_tables or None)
     return result
+
+
+def _run_multi_query(question: str) -> dict:
+    """Decompose and run the full multi-chart pipeline."""
+    with st.spinner("Analysing your request and running agents..."):
+        return process_multi_query(question)
+
+
+# ─────────────────────────────────────────────
+# Per-chart render helpers
+# ─────────────────────────────────────────────
+
+def _render_qa_chart(chart_idx: int, result: dict, question: str) -> None:
+    """Render one chart result on the Quick Insights page."""
+    idx = chart_idx
+    table_recs = result.get("table_recommendations", {})
+    sql_res = result.get("sql_results", {})
+    viz = result.get("visualization", {})
+    df: pd.DataFrame = sql_res.get("results", pd.DataFrame())
+
+    # ── 1. Table Recommendations ──────────────────────────
+    with st.expander("1. Table Recommendations", expanded=True):
+        st.markdown(f"**Reasoning:** {table_recs.get('reasoning', '')}")
+        all_tables = table_recs.get("recommended_tables", [])
+        approved = st.multiselect(
+            "Tables to use (uncheck to exclude):",
+            options=all_tables,
+            default=st.session_state.get(f"qa_approved_tables_{idx}", all_tables),
+            key=f"qa_table_select_{idx}",
+        )
+        st.session_state[f"qa_approved_tables_{idx}"] = approved
+
+        joins = table_recs.get("suggested_joins", [])
+        if joins:
+            st.markdown("**Suggested joins:**")
+            for j in joins:
+                st.code(
+                    f"{j.get('type','JOIN')} {j.get('left','')} = {j.get('right','')}",
+                    language="sql",
+                )
+
+        if st.button("Re-run with selected tables", key=f"qa_rerun_{idx}"):
+            new_result = _run_query(question, approved)
+            st.session_state["qa_multi_result"]["charts"][idx]["result"] = new_result
+            st.session_state[f"qa_approved_tables_{idx}"] = (
+                new_result["table_recommendations"].get("recommended_tables", [])
+            )
+            st.session_state[f"qa_sql_override_{idx}"] = (
+                new_result["sql_results"].get("sql_query", "")
+            )
+            st.rerun()
+
+    # ── 2. Generated SQL ──────────────────────────────────
+    with st.expander("2. Generated SQL", expanded=True):
+        edited_sql = st.text_area(
+            "SQL (edit and click Execute to re-run):",
+            value=st.session_state.get(f"qa_sql_override_{idx}", sql_res.get("sql_query", "")),
+            height=180,
+            key=f"qa_sql_edit_{idx}",
+        )
+        col1, col2 = st.columns([1, 4])
+        with col1:
+            if st.button("Execute SQL", key=f"qa_exec_{idx}"):
+                import sqlite3
+                from config import DATABASE_PATH
+                try:
+                    conn = sqlite3.connect(DATABASE_PATH)
+                    override_df = pd.read_sql_query(edited_sql, conn)
+                    conn.close()
+                    patched_sql = {
+                        **sql_res,
+                        "results": override_df,
+                        "row_count": len(override_df),
+                        "sql_query": edited_sql,
+                        "errors": [],
+                    }
+                    st.session_state["qa_multi_result"]["charts"][idx]["result"]["sql_results"] = patched_sql
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"SQL execution error: {e}")
+        with col2:
+            if sql_res.get("sql_explanation"):
+                st.info(f"What this query does: {sql_res['sql_explanation']}")
+
+        st.markdown(
+            f"Execution time: **{sql_res.get('execution_time_ms', 0):.0f} ms** · "
+            f"Rows returned: **{sql_res.get('row_count', 0):,}**"
+        )
+
+    # ── 3. Results & Visualization ────────────────────────
+    st.markdown("### 3. Results & Visualization")
+
+    if sql_res.get("errors"):
+        for err in sql_res["errors"]:
+            st.error(f"Error: {err}")
+    elif df.empty:
+        st.warning("Query returned no results.")
+    else:
+        fig = viz.get("figure")
+        if fig and isinstance(fig, go.Figure):
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("No chart generated.")
+
+        st.markdown(f"**Data** (showing first 100 of {len(df):,} rows)")
+        st.dataframe(df.head(100), use_container_width=True)
+
+        dl_col1, dl_col2 = st.columns(2)
+        with dl_col1:
+            st.download_button(
+                "Download Excel",
+                data=export_to_excel_bytes(df),
+                file_name=f"query_results_chart{idx + 1}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key=f"qa_dl_excel_{idx}",
+            )
+        with dl_col2:
+            st.download_button(
+                "Download CSV",
+                data=export_to_csv_bytes(df),
+                file_name=f"query_results_chart{idx + 1}.csv",
+                mime="text/csv",
+                key=f"qa_dl_csv_{idx}",
+            )
+
+    # ── 4. Confidence ─────────────────────────────────────
+    st.markdown("### 4. Confidence")
+    st.markdown(_confidence_badge(result), unsafe_allow_html=True)
+    if result.get("errors"):
+        for e in result["errors"]:
+            st.warning(e)
+
+
+def _render_pbi_chart(chart_idx: int, result: dict, question: str) -> None:
+    """Render one chart result on the Power BI Builder page."""
+    idx = chart_idx
+    table_recs = result.get("table_recommendations", {})
+    sql_res = result.get("sql_results", {})
+    viz = result.get("visualization", {})
+    df: pd.DataFrame = sql_res.get("results", pd.DataFrame())
+
+    # ── 1. Table Recommendations ──────────────────────────
+    with st.expander("1. Table Recommendations", expanded=True):
+        st.markdown(f"**Reasoning:** {table_recs.get('reasoning', '')}")
+        all_tables = table_recs.get("recommended_tables", [])
+        approved_pbi = st.multiselect(
+            "Tables to use:",
+            options=all_tables,
+            default=all_tables,
+            key=f"pbi_table_select_{idx}",
+        )
+        if st.button("Re-run with selected tables", key=f"pbi_rerun_{idx}"):
+            new_result = _run_query(question, approved_pbi)
+            st.session_state["pbi_multi_result"]["charts"][idx]["result"] = new_result
+            st.session_state[f"pbi_dax_{idx}"] = []
+            st.rerun()
+
+    # ── 2. Generated SQL ──────────────────────────────────
+    with st.expander("2. Generated SQL", expanded=True):
+        st.code(sql_res.get("sql_query", ""), language="sql")
+        if sql_res.get("sql_explanation"):
+            st.info(sql_res["sql_explanation"])
+        st.markdown(
+            f"Rows: **{sql_res.get('row_count', 0):,}** · "
+            f"Time: **{sql_res.get('execution_time_ms', 0):.0f} ms**"
+        )
+        if not df.empty:
+            st.dataframe(df.head(20), use_container_width=True)
+
+    # ── 3. Power BI Preparation ────────────────────────────
+    st.markdown("### 3. Power BI Preparation")
+
+    if sql_res.get("errors"):
+        for e in sql_res["errors"]:
+            st.error(e)
+    else:
+        # Generate DAX measures (lazy — only once per chart)
+        dax_key = f"pbi_dax_{idx}"
+        if not st.session_state.get(dax_key):
+            with st.spinner("Generating DAX measures..."):
+                st.session_state[dax_key] = generate_dax_measures(viz, question)
+
+        dax_measures = st.session_state[dax_key]
+
+        st.markdown("#### DAX Measures")
+        if dax_measures:
+            for m in dax_measures:
+                st.markdown(f"**{m.get('name', 'Measure')}** — {m.get('explanation', '')}")
+                st.code(m.get("dax", ""), language="dax")
+        else:
+            st.info("No DAX measures generated for this query.")
+
+        st.markdown("#### Recommended Power BI Visual")
+        pbi_suggestion = viz.get("powerbi_suggestion", "")
+        st.info(pbi_suggestion or "See the setup guide for details.")
+
+        dl1, dl2 = st.columns(2)
+        with dl1:
+            if not df.empty:
+                st.download_button(
+                    "Download Excel for Power BI",
+                    data=export_standardized_excel_bytes(df, viz),
+                    file_name=f"powerbi_export_chart{idx + 1}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key=f"pbi_dl_excel_{idx}",
+                )
+        with dl2:
+            guide = generate_powerbi_instructions(viz)
+            st.download_button(
+                "Download Power BI Setup Guide",
+                data=guide.encode("utf-8"),
+                file_name=f"powerbi_setup_guide_chart{idx + 1}.txt",
+                mime="text/plain",
+                key=f"pbi_dl_guide_{idx}",
+            )
+
+        st.info(
+            "If you have the Power BI Modeling MCP server configured, "
+            "the measures and tables below can be created automatically "
+            "in Power BI Desktop via VS Code + GitHub Copilot."
+        )
+
+        with st.expander("4. MCP Command Generator", expanded=False):
+            st.markdown(
+                "Copy these prompts and paste them into **Claude Desktop** "
+                "with the Power BI Modeling MCP server active."
+            )
+            mcp_text = generate_mcp_commands(viz, dax_measures, df, question)
+            st.text_area("MCP Prompts", value=mcp_text, height=300, key=f"mcp_output_{idx}")
+            st.download_button(
+                "Download MCP Prompts",
+                data=mcp_text.encode("utf-8"),
+                file_name=f"mcp_commands_chart{idx + 1}.txt",
+                mime="text/plain",
+                key=f"pbi_dl_mcp_{idx}",
+            )
 
 
 # ─────────────────────────────────────────────
@@ -363,8 +602,9 @@ with st.sidebar:
     st.markdown('<p class="nav-section">Architecture</p>', unsafe_allow_html=True)
     st.markdown(
         '<p class="sidebar-info">'
-        'Agent 1 · Table Recommender &nbsp;|&nbsp; Agent 2 · SQL Generator &nbsp;|&nbsp; '
-        'Agent 3 · Viz Recommender &nbsp;|&nbsp; Orchestrator · Coordinates all'
+        'Agent 1 · Query Decomposer &nbsp;|&nbsp; Agent 2 · Table Recommender &nbsp;|&nbsp; '
+        'Agent 3 · SQL Generator &nbsp;|&nbsp; Agent 4 · Viz Recommender &nbsp;|&nbsp; '
+        'Agent 5 · Orchestrator · Coordinates all'
         '</p>',
         unsafe_allow_html=True,
     )
@@ -379,6 +619,23 @@ page = st.session_state["page"]
 if page == "⚡ Quick Insights":
     st.subheader("Ask a question — get insights instantly")
 
+    st.markdown("""
+    <div style="background:#f0f4ff;border-left:4px solid #3b82f6;padding:14px 18px;border-radius:6px;margin-bottom:18px;">
+    <p style="margin:0 0 6px 0;font-size:15px;font-weight:600;color:#1e3a5f;">Why Quick Insights?</p>
+    <p style="margin:0;font-size:14px;color:#374151;line-height:1.6;">
+    Have you ever needed a business answer <em>right now</em> — but getting it meant writing SQL,
+    opening a report, or waiting on someone else? With Quick Insights, you just ask the question
+    in plain English and get the answer instantly. Whether you're on the go checking this month's
+    sales figures, tracking which product categories are driving revenue, or comparing performance
+    across regions — no SQL, no dashboards, no delays. Just ask and know.<br><br>
+    <span style="font-size:13px;color:#6b7280;">
+    This is a Proof of Concept built on the <strong>Olist Brazilian E-Commerce Dataset</strong>
+    (~100k orders, 2016–2018).
+    </span>
+    </p>
+    </div>
+    """, unsafe_allow_html=True)
+
     prefill = st.session_state.get("prefill_question", "") \
         if st.session_state.get("prefill_tab") == "quick" else ""
 
@@ -391,131 +648,48 @@ if page == "⚡ Quick Insights":
     )
     st.session_state["prefill_question"] = ""
 
+    if st.session_state["auth_verified"]:
+        st.success("Access granted for this session.", icon="🔐")
+    else:
+        st.text_input("Enter access password to run queries:", type="password", key="qa_password_input")
+
     run_btn = st.button("Get Insights", type="primary", key="qa_run")
 
     if run_btn and question.strip():
+        if not st.session_state["auth_verified"]:
+            entered = st.session_state.get("qa_password_input", "")
+            if entered != APP_PASSWORD:
+                st.error("Incorrect password. Please enter the correct access password to run queries.")
+                st.stop()
+            st.session_state["auth_verified"] = True
         st.session_state["qa_question"] = question.strip()
-        st.session_state["qa_result"] = _run_query(question.strip())
+        st.session_state["qa_multi_result"] = _run_multi_query(question.strip())
         st.session_state["qa_ran"] = True
-        st.session_state["qa_approved_tables"] = \
-            st.session_state["qa_result"]["table_recommendations"].get("recommended_tables", [])
-        st.session_state["qa_sql_override"] = \
-            st.session_state["qa_result"]["sql_results"].get("sql_query", "")
-
-    if st.session_state.get("qa_ran") and st.session_state.get("qa_result"):
-        result = st.session_state["qa_result"]
-        table_recs = result.get("table_recommendations", {})
-        sql_res = result.get("sql_results", {})
-        viz = result.get("visualization", {})
-        df: pd.DataFrame = sql_res.get("results", pd.DataFrame())
-
-        # ── 1. Table Recommendations ──────────────────────────
-        with st.expander("1. Table Recommendations", expanded=True):
-            st.markdown(f"**Reasoning:** {table_recs.get('reasoning', '')}")
-            all_tables = table_recs.get("recommended_tables", [])
-            approved = st.multiselect(
-                "Tables to use (uncheck to exclude):",
-                options=all_tables,
-                default=st.session_state["qa_approved_tables"],
-                key="qa_table_select",
+        # Initialise per-chart state
+        for i, chart in enumerate(st.session_state["qa_multi_result"]["charts"]):
+            r = chart["result"]
+            st.session_state[f"qa_approved_tables_{i}"] = (
+                r["table_recommendations"].get("recommended_tables", [])
             )
-            st.session_state["qa_approved_tables"] = approved
-
-            joins = table_recs.get("suggested_joins", [])
-            if joins:
-                st.markdown("**Suggested joins:**")
-                for j in joins:
-                    st.code(f"{j.get('type','JOIN')} {j.get('left','')} = {j.get('right','')}", language="sql")
-
-            if st.button("Re-run with selected tables", key="qa_rerun"):
-                st.session_state["qa_result"] = _run_query(
-                    st.session_state["qa_question"], approved
-                )
-                st.session_state["qa_sql_override"] = \
-                    st.session_state["qa_result"]["sql_results"].get("sql_query", "")
-                st.rerun()
-
-        # ── 2. Generated SQL ──────────────────────────────────
-        with st.expander("2. Generated SQL", expanded=True):
-            edited_sql = st.text_area(
-                "SQL (edit and click Execute to re-run):",
-                value=st.session_state.get("qa_sql_override", sql_res.get("sql_query", "")),
-                height=180,
-                key="qa_sql_edit",
-            )
-            col1, col2 = st.columns([1, 4])
-            with col1:
-                if st.button("Execute SQL", key="qa_exec"):
-                    # Run a manual SQL override
-                    import sqlite3
-                    from config import DATABASE_PATH
-                    try:
-                        conn = sqlite3.connect(DATABASE_PATH)
-                        override_df = pd.read_sql_query(edited_sql, conn)
-                        conn.close()
-                        # Patch the result
-                        new_res = dict(result)
-                        new_res["sql_results"] = dict(sql_res)
-                        new_res["sql_results"]["results"] = override_df
-                        new_res["sql_results"]["row_count"] = len(override_df)
-                        new_res["sql_results"]["sql_query"] = edited_sql
-                        new_res["sql_results"]["errors"] = []
-                        st.session_state["qa_result"] = new_res
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"SQL execution error: {e}")
-            with col2:
-                if sql_res.get("sql_explanation"):
-                    st.info(f"What this query does: {sql_res['sql_explanation']}")
-
-            st.markdown(
-                f"Execution time: **{sql_res.get('execution_time_ms', 0):.0f} ms** · "
-                f"Rows returned: **{sql_res.get('row_count', 0):,}**"
+            st.session_state[f"qa_sql_override_{i}"] = (
+                r["sql_results"].get("sql_query", "")
             )
 
-        # ── 3. Results & Visualization ────────────────────────
-        st.markdown("### 3. Results & Visualization")
+    if st.session_state.get("qa_ran") and st.session_state.get("qa_multi_result"):
+        multi = st.session_state["qa_multi_result"]
+        charts = multi["charts"]
 
-        if sql_res.get("errors"):
-            for err in sql_res["errors"]:
-                st.error(f"Error: {err}")
-        elif df.empty:
-            st.warning("Query returned no results.")
+        if len(charts) > 1:
+            st.info(
+                f"Detected **{len(charts)} chart requests** in your question. "
+                "Each chart is shown in its own tab below."
+            )
+            tabs = st.tabs([c["label"] for c in charts])
+            for i, (tab, chart) in enumerate(zip(tabs, charts)):
+                with tab:
+                    _render_qa_chart(i, chart["result"], chart["question"])
         else:
-            # Chart
-            fig = viz.get("figure")
-            if fig and isinstance(fig, go.Figure):
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.info("No chart generated.")
-
-            # Data table
-            st.markdown(f"**Data** (showing first 100 of {len(df):,} rows)")
-            st.dataframe(df.head(100), use_container_width=True)
-
-            # Download buttons
-            dl_col1, dl_col2 = st.columns(2)
-            with dl_col1:
-                st.download_button(
-                    "Download Excel",
-                    data=export_to_excel_bytes(df),
-                    file_name="query_results.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                )
-            with dl_col2:
-                st.download_button(
-                    "Download CSV",
-                    data=export_to_csv_bytes(df),
-                    file_name="query_results.csv",
-                    mime="text/csv",
-                )
-
-        # ── 4. Confidence badge ───────────────────────────────
-        st.markdown("### 4. Confidence")
-        st.markdown(_confidence_badge(result), unsafe_allow_html=True)
-        if result.get("errors"):
-            for e in result["errors"]:
-                st.warning(e)
+            _render_qa_chart(0, charts[0]["result"], charts[0]["question"])
 
 
 # ─────────────────────────────────────────────
@@ -525,6 +699,24 @@ if page == "⚡ Quick Insights":
 elif page == "📊 Power BI Builder":
     st.subheader("Prepare your data and DAX measures for Power BI")
 
+    st.markdown("""
+    <div style="background:#f0f4ff;border-left:4px solid #3b82f6;padding:14px 18px;border-radius:6px;margin-bottom:18px;">
+    <p style="margin:0 0 6px 0;font-size:15px;font-weight:600;color:#1e3a5f;">Why Power BI Builder?</p>
+    <p style="margin:0;font-size:14px;color:#374151;line-height:1.6;">
+    Building a Power BI dashboard traditionally requires data extraction, SQL queries, manual data prep,
+    and hours writing DAX measures — before you've even opened the report canvas. Power BI Builder
+    eliminates all of that groundwork. Describe the dashboard you want in plain English — one chart
+    or many — and this tool generates the query results ready to load into Power BI, recommends the
+    right visual type, and writes the DAX measures for you. All that's left is dragging the fields
+    onto the canvas.<br><br>
+    <span style="font-size:13px;color:#6b7280;">
+    This is a Proof of Concept built on the <strong>Olist Brazilian E-Commerce Dataset</strong>
+    (~100k orders, 2016–2018).
+    </span>
+    </p>
+    </div>
+    """, unsafe_allow_html=True)
+
     prefill = st.session_state.get("prefill_question", "") \
         if st.session_state.get("prefill_tab") == "pbi" else ""
 
@@ -533,132 +725,53 @@ elif page == "📊 Power BI Builder":
         value=prefill,
         height=80,
         placeholder=(
-            "Example: Create a sales dashboard showing monthly revenue trend by category, "
-            "top 10 products by revenue, and a regional performance comparison"
+            "Example: Show monthly revenue trend for 2017, top 10 product categories "
+            "for 2017, and revenue by geographic area"
         ),
         key="pbi_input",
     )
     st.caption(
-        "Tip: Be as specific as possible. Mention the metrics you care about "
-        "(revenue, orders, reviews) and any time or category filters."
+        "Tip: You can ask for multiple charts at once — the AI will detect each one "
+        "and prepare them separately. Mention metrics, time filters, and breakdowns."
     )
     st.session_state["prefill_question"] = ""
+
+    if st.session_state["auth_verified"]:
+        st.success("Access granted for this session.", icon="🔐")
+    else:
+        st.text_input("Enter access password to run queries:", type="password", key="pbi_password_input")
 
     run_btn = st.button("Prepare for Power BI", type="primary", key="pbi_run")
 
     if run_btn and question.strip():
+        if not st.session_state["auth_verified"]:
+            entered = st.session_state.get("pbi_password_input", "")
+            if entered != APP_PASSWORD:
+                st.error("Incorrect password. Please enter the correct access password to run queries.")
+                st.stop()
+            st.session_state["auth_verified"] = True
         st.session_state["pbi_question"] = question.strip()
-        st.session_state["pbi_result"] = _run_query(question.strip())
+        st.session_state["pbi_multi_result"] = _run_multi_query(question.strip())
         st.session_state["pbi_ran"] = True
-        st.session_state["pbi_dax"] = []
+        # Clear per-chart DAX state
+        for i in range(len(st.session_state["pbi_multi_result"]["charts"])):
+            st.session_state[f"pbi_dax_{i}"] = []
 
-    if st.session_state.get("pbi_ran") and st.session_state.get("pbi_result"):
-        result = st.session_state["pbi_result"]
-        table_recs = result.get("table_recommendations", {})
-        sql_res = result.get("sql_results", {})
-        viz = result.get("visualization", {})
-        df: pd.DataFrame = sql_res.get("results", pd.DataFrame())
+    if st.session_state.get("pbi_ran") and st.session_state.get("pbi_multi_result"):
+        multi = st.session_state["pbi_multi_result"]
+        charts = multi["charts"]
 
-        # ── 1. Table Recommendations ──────────────────────────
-        with st.expander("1. Table Recommendations", expanded=True):
-            st.markdown(f"**Reasoning:** {table_recs.get('reasoning', '')}")
-            all_tables = table_recs.get("recommended_tables", [])
-            approved_pbi = st.multiselect(
-                "Tables to use:",
-                options=all_tables,
-                default=all_tables,
-                key="pbi_table_select",
-            )
-            if st.button("Re-run with selected tables", key="pbi_rerun"):
-                st.session_state["pbi_result"] = _run_query(
-                    st.session_state["pbi_question"], approved_pbi
-                )
-                st.session_state["pbi_dax"] = []
-                st.rerun()
-
-        # ── 2. Generated SQL ──────────────────────────────────
-        with st.expander("2. Generated SQL", expanded=True):
-            st.code(sql_res.get("sql_query", ""), language="sql")
-            if sql_res.get("sql_explanation"):
-                st.info(sql_res["sql_explanation"])
-            st.markdown(
-                f"Rows: **{sql_res.get('row_count', 0):,}** · "
-                f"Time: **{sql_res.get('execution_time_ms', 0):.0f} ms**"
-            )
-            if not df.empty:
-                st.dataframe(df.head(20), use_container_width=True)
-
-        # ── 3. Power BI Preparation ────────────────────────────
-        st.markdown("### 3. Power BI Preparation")
-
-        if sql_res.get("errors"):
-            for e in sql_res["errors"]:
-                st.error(e)
-        else:
-            # Generate DAX measures (lazy — only once)
-            if not st.session_state["pbi_dax"]:
-                with st.spinner("Generating DAX measures..."):
-                    st.session_state["pbi_dax"] = generate_dax_measures(
-                        viz, st.session_state["pbi_question"]
-                    )
-
-            dax_measures = st.session_state["pbi_dax"]
-
-            # DAX measures
-            st.markdown("#### DAX Measures")
-            if dax_measures:
-                for m in dax_measures:
-                    st.markdown(f"**{m.get('name', 'Measure')}** — {m.get('explanation', '')}")
-                    st.code(m.get("dax", ""), language="dax")
-            else:
-                st.info("No DAX measures generated for this query.")
-
-            # Power BI visual suggestion
-            st.markdown("#### Recommended Power BI Visual")
-            pbi_suggestion = viz.get("powerbi_suggestion", "")
-            st.info(pbi_suggestion or "See the setup guide for details.")
-
-            # Download buttons
-            dl1, dl2 = st.columns(2)
-            with dl1:
-                if not df.empty:
-                    st.download_button(
-                        "Download Excel for Power BI",
-                        data=export_standardized_excel_bytes(df, viz),
-                        file_name="powerbi_export.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    )
-            with dl2:
-                guide = generate_powerbi_instructions(viz)
-                st.download_button(
-                    "Download Power BI Setup Guide",
-                    data=guide.encode("utf-8"),
-                    file_name="powerbi_setup_guide.txt",
-                    mime="text/plain",
-                )
-
+        if len(charts) > 1:
             st.info(
-                "If you have the Power BI Modeling MCP server configured, "
-                "the measures and tables below can be created automatically "
-                "in Power BI Desktop via VS Code + GitHub Copilot."
+                f"Detected **{len(charts)} chart requests** in your question. "
+                "Each chart is prepared separately in its own tab below."
             )
-
-            # ── 4. MCP Command Generator ─────────────────────
-            with st.expander("4. MCP Command Generator", expanded=False):
-                st.markdown(
-                    "Copy these prompts and paste them into **Claude Desktop** "
-                    "with the Power BI Modeling MCP server active."
-                )
-                mcp_text = generate_mcp_commands(
-                    viz, dax_measures, df, st.session_state["pbi_question"]
-                )
-                st.text_area("MCP Prompts", value=mcp_text, height=300, key="mcp_output")
-                st.download_button(
-                    "Download MCP Prompts",
-                    data=mcp_text.encode("utf-8"),
-                    file_name="mcp_commands.txt",
-                    mime="text/plain",
-                )
+            tabs = st.tabs([c["label"] for c in charts])
+            for i, (tab, chart) in enumerate(zip(tabs, charts)):
+                with tab:
+                    _render_pbi_chart(i, chart["result"], chart["question"])
+        else:
+            _render_pbi_chart(0, charts[0]["result"], charts[0]["question"])
 
 
 # ─────────────────────────────────────────────

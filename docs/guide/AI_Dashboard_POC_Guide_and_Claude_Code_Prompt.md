@@ -89,10 +89,11 @@ ai-dashboard-generator/
 ├── database/
 │   └── fmcg_warehouse.db       # SQLite database
 ├── agents/
-│   ├── table_recommender.py    # Agent 1: finds right tables
-│   ├── sql_generator.py        # Agent 2: writes & runs SQL
-│   ├── viz_recommender.py      # Agent 3: suggests visualizations
-│   └── orchestrator.py         # Master agent that coordinates
+│   ├── query_decomposer.py     # Agent 1: detects single vs. multi-chart (added Phase 5)
+│   ├── table_recommender.py    # Agent 2: finds right tables
+│   ├── sql_generator.py        # Agent 3: writes & runs SQL
+│   ├── viz_recommender.py      # Agent 4: suggests visualizations
+│   └── orchestrator.py         # Agent 5: coordinates all agents
 ├── app/
 │   └── streamlit_app.py        # Frontend with dual-tab architecture
 ├── powerbi/

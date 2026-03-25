@@ -2,9 +2,9 @@
 
 ## Overview
 
-A multi-agent RAG system that converts natural language questions into data visualizations and Power BI assets — no SQL or DAX knowledge required.
+A multi-agent RAG system that converts natural language questions into data visualizations and Power BI assets — no SQL or DAX knowledge required. A single question or a multi-chart dashboard request are both handled automatically.
 
-The system uses Claude (Anthropic) as the reasoning engine, JSON metadata files as the domain knowledge base, and SQLite as the analytical data store. Three specialised agents run in a sequential pipeline coordinated by an orchestrator.
+The system uses Claude (Anthropic) as the reasoning engine, JSON metadata files as the domain knowledge base, and SQLite as the analytical data store. Five specialised agents run in a coordinated pipeline: a Query Decomposer detects intent and splits multi-chart requests, then three core agents (Table Recommender, SQL Generator, Viz Recommender) run once per chart, all coordinated by the Orchestrator.
 
 ---
 
@@ -16,29 +16,44 @@ The system uses Claude (Anthropic) as the reasoning engine, JSON metadata files 
 │                                                                       │
 │   Sidebar Navigation                 Main Content Area               │
 │   ─────────────────                  ────────────────────            │
-│   ⚡ Quick Insights    ────────────▶  Question input                  │
-│   📊 Power BI Builder  ────────────▶  Results + Chart                 │
-│   📚 Data Catalog                    Download buttons                 │
-│   🔄 Feedback & Learning             Confidence badge                 │
-│   💡 Example Queries                                                  │
+│   ⚡ Quick Insights    ────────────▶  Password check                  │
+│   📊 Power BI Builder  ────────────▶  Question input                  │
+│   📚 Data Catalog                    Results (tabs if multi-chart)    │
+│   🔄 Feedback & Learning             Download buttons                 │
+│   💡 Example Queries                 Confidence badge                 │
 │                                                                       │
 │   st.session_state manages all UI state across reruns                 │
 └───────────────────────────────────────────┬───────────────────────────┘
-                                            │ process_query(question)
+                                            │ process_multi_query(question)
                                             ▼
 ┌───────────────────────────────────────────────────────────────────────┐
-│  ORCHESTRATOR  ·  agents/orchestrator.py                              │
+│  AGENT 1 · QUERY DECOMPOSER  ·  agents/query_decomposer.py            │
 │                                                                       │
-│   1. Call Table Recommender → get table list                          │
-│   2. Call SQL Generator     → get DataFrame                           │
-│   3. Call Viz Recommender   → get Plotly figure                       │
-│   4. Log use case to use_case_log.json                                │
-│   5. Return unified result dict to frontend                           │
+│   · Receives raw user question                                        │
+│   · Detects single vs. multi-chart intent                             │
+│   · Splits into focused, self-contained sub-questions if needed       │
+│   · Returns: { is_multi_chart: bool, charts: [{label, question}] }   │
+└───────────────────────────────────────────┬───────────────────────────┘
+                          "N chart(s) detected"
+                  ┌───────────────┼───────────────┐
+            Chart 1 Q      Chart 2 Q        Chart N Q
+                  │               │               │
+                  ▼               ▼               ▼
+┌───────────────────────────────────────────────────────────────────────┐
+│  AGENT 5 · ORCHESTRATOR  ·  agents/orchestrator.py                    │
+│                                                                       │
+│   process_multi_query(): calls decomposer, loops process_query()      │
+│   process_query():                                                    │
+│     1. Call Table Recommender → get table list                        │
+│     2. Call SQL Generator     → get DataFrame                         │
+│     3. Call Viz Recommender   → get Plotly figure                     │
+│     4. Log use case to use_case_log.json                              │
+│     5. Return unified result dict to frontend                         │
 └────────┬──────────────────┬──────────────────┬────────────────────────┘
          │                  │                  │
          ▼                  ▼                  ▼
   ┌─────────────┐  ┌────────────────┐  ┌──────────────────┐
-  │  AGENT 1    │  │    AGENT 2     │  │    AGENT 3       │
+  │  AGENT 2    │  │    AGENT 3     │  │    AGENT 4       │
   │  Table      │  │  SQL Generator │  │  Viz Recommender │
   │  Recommender│  │                │  │                  │
   └──────┬──────┘  └───────┬────────┘  └────────┬─────────┘
@@ -70,7 +85,19 @@ RAG (Retrieval-Augmented Generation) is the core pattern. At query time, structu
 
 ### What Gets Injected Per Agent
 
-**Agent 1 — Table Recommender**
+**Agent 1 — Query Decomposer**
+
+```
+System prompt receives:
+  - Raw user question
+
+Claude reasons: "Does this question ask for one chart or multiple distinct charts?
+                If multiple, what is the focused, self-contained question for each?"
+Output: { is_multi_chart: bool, charts: [{ label, question }] }
+Fallback: if parsing fails, returns single chart with original question unchanged
+```
+
+**Agent 2 — Table Recommender**
 
 ```
 System prompt receives:
@@ -83,12 +110,12 @@ Claude reasons: "Given this question, which of the 8 tables contain the relevant
 Output: ranked list of tables + suggested join conditions + reasoning
 ```
 
-**Agent 2 — SQL Generator**
+**Agent 3 — SQL Generator**
 
 ```
 System prompt receives:
   - Table schemas from SQLite PRAGMA (live, always current)
-  - Suggested joins from Agent 1
+  - Suggested joins from Agent 2 (Table Recommender)
   - order_status_filter_rule      (exclude canceled + unavailable)
   - business_rules array          (all 13 rules)
   - growth_calculation_rules      (monthly / YTD / YoY with CTE patterns)
@@ -98,7 +125,7 @@ Claude reasons: "Write a SQLite SELECT query that answers this question, followi
 Output: SQL string (validated, self-corrected up to 3 times, then executed)
 ```
 
-**Agent 3 — Viz Recommender**
+**Agent 4 — Viz Recommender**
 
 ```
 System prompt receives:
@@ -122,7 +149,32 @@ When schema changes, you update one JSON file. No retraining, no deployment, no 
 
 ---
 
-## Agent 1: Table Recommender
+## Agent 1: Query Decomposer
+
+**File:** `agents/query_decomposer.py`
+**Function:** `decompose_query(user_question: str) -> dict`
+
+```
+Input:  Raw natural language question (may contain one or multiple chart requests)
+Output: {
+    "is_multi_chart": True,
+    "charts": [
+        {"label": "Chart 1: Monthly Revenue Trend 2017", "question": "Show monthly revenue trend for 2017"},
+        {"label": "Chart 2: Top 10 Categories 2017",     "question": "Top 10 product categories by revenue for 2017"},
+        {"label": "Chart 3: Revenue by State",           "question": "Total revenue by customer state"}
+    ]
+}
+```
+
+**Detection signals:** connector words ("and", "also", "plus"), commas between different analyses, enumerated items ("Chart 1 ... Chart 2 ..."), or multiple distinct metrics/dimensions in one question.
+
+**Fallback:** If the Claude response cannot be parsed as valid JSON, returns `is_multi_chart: False` with the original question as a single-chart request — the pipeline always continues safely.
+
+**Downstream effect:** The Orchestrator's `process_multi_query()` loops over the `charts` list and calls `process_query()` once per chart. A 3-chart request triggers 3 × (Table Recommender + SQL Generator + Viz Recommender) = 9 agent calls plus 1 Decomposer call.
+
+---
+
+## Agent 2: Table Recommender
 
 **File:** `agents/table_recommender.py`
 **Function:** `recommend_tables(user_question: str, override_tables: list | None) -> dict`
@@ -143,7 +195,7 @@ Output: {
 
 ---
 
-## Agent 2: SQL Generator
+## Agent 3: SQL Generator
 
 **File:** `agents/sql_generator.py`
 **Function:** `generate_and_run_sql(question: str, table_recommendations: dict) -> dict`
@@ -176,7 +228,7 @@ Max 3 attempts, then return with errors
 
 ---
 
-## Agent 3: Viz Recommender
+## Agent 4: Viz Recommender
 
 **File:** `agents/viz_recommender.py`
 **Function:** `recommend_visualization(user_question: str, query_results: dict) -> dict`
@@ -214,12 +266,29 @@ Multi-row dimensional → grouped bars + line on secondary Y-axis with labeled d
 
 ---
 
-## Orchestrator
+## Agent 5: Orchestrator
 
 **File:** `agents/orchestrator.py`
-**Function:** `process_query(user_question: str, override_tables: list | None, log_use_case: bool) -> dict`
 
-Coordinates the three agents:
+### `process_multi_query(user_question, log_use_case) -> dict`
+
+Entry point for the frontend. Calls the Query Decomposer, then loops `process_query()` once per detected chart.
+
+```
+Input:  Raw user question
+Output: {
+    "original_question": str,
+    "is_multi_chart": bool,
+    "charts": [
+        { "label": "Chart 1: ...", "question": "...", "result": <process_query output> },
+        ...
+    ]
+}
+```
+
+### `process_query(user_question, override_tables, log_use_case) -> dict`
+
+Processes a single focused chart question end-to-end:
 1. Calls `recommend_tables()` — if `override_tables` provided, passes it through
 2. Calls `generate_and_run_sql()` with table recs
 3. Calls `recommend_visualization()` with SQL results
@@ -272,10 +341,32 @@ Functions:
 
 ---
 
-## Data Flow: Growth Query Example
+## Data Flow: Multi-Chart Request Example
+
+```
+User asks: "Show monthly revenue trend for 2017, top 10 categories for 2017, and revenue by state"
+
+0. QUERY DECOMPOSER
+   Detects 3 distinct analyses → splits into:
+   - Chart 1: "Show monthly revenue trend for 2017"
+   - Chart 2: "Top 10 product categories by revenue for 2017"
+   - Chart 3: "Total revenue by customer state"
+   is_multi_chart = True
+
+   Frontend renders results in 3 tabs: Chart 1 | Chart 2 | Chart 3
+   Each tab has independent Table Recs, SQL, chart, and download buttons.
+```
+
+---
+
+## Data Flow: Single Growth Query Example
 
 ```
 User asks: "What is the sales growth by category for May 2018?"
+
+0. QUERY DECOMPOSER
+   Detects single analysis → returns is_multi_chart = False
+   Passes original question through unchanged.
 
 1. TABLE RECOMMENDER
    Reads metadata → identifies:
@@ -328,6 +419,9 @@ DATABASE_PATH       = BASE_DIR / "database" / "fmcg_warehouse.db"
 METADATA_DIR        = BASE_DIR / "metadata"
 MAX_SQL_RETRIES     = 3
 MAX_RESULTS_DISPLAY = 500
+APP_PASSWORD        = os.getenv("APP_PASSWORD", "insights2024")  # change before sharing
 ```
+
+`APP_PASSWORD` gates both Quick Insights and Power BI Builder. Once a user enters the correct password in a session, `auth_verified` is stored in `st.session_state` so they are not prompted again until the browser session resets. Set the `APP_PASSWORD` environment variable to override the default when deploying.
 
 Agents never hardcode paths or model names — they always import from `config.py`.

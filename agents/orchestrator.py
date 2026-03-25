@@ -161,6 +161,62 @@ def process_query(
     }
 
 
+# ─────────────────────────────────────────────
+# Multi-chart orchestration
+# ─────────────────────────────────────────────
+
+def process_multi_query(
+    user_question: str,
+    log_use_case: bool = True,
+) -> dict:
+    """
+    Decompose a potentially multi-chart question and process each chart independently.
+
+    Args:
+        user_question:  Raw natural language request from the user.
+        log_use_case:   Whether to log each sub-query to the use_case_log.
+
+    Returns:
+        {
+            "original_question": str,
+            "is_multi_chart": bool,
+            "charts": [
+                {
+                    "label":    "Chart 1: <title>",
+                    "question": "<focused question>",
+                    "result":   <dict — same structure as process_query output>
+                },
+                ...
+            ]
+        }
+    """
+    from agents.query_decomposer import decompose_query
+
+    print(f"[Orchestrator] Decomposing query: \"{user_question[:80]}...\"")
+    decomposed = decompose_query(user_question)
+    is_multi = decomposed.get("is_multi_chart", False)
+    charts = decomposed.get("charts", [{"label": "Chart 1", "question": user_question}])
+    print(f"  Multi-chart: {is_multi} — {len(charts)} chart(s) detected")
+
+    results = []
+    for i, chart in enumerate(charts):
+        label = chart.get("label", f"Chart {i + 1}")
+        question = chart.get("question", user_question)
+        print(f"[Orchestrator] Processing {label}...")
+        result = process_query(question, log_use_case=log_use_case)
+        results.append({
+            "label": label,
+            "question": question,
+            "result": result,
+        })
+
+    return {
+        "original_question": user_question,
+        "is_multi_chart": is_multi,
+        "charts": results,
+    }
+
+
 if __name__ == "__main__":
     import sys
 

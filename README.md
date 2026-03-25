@@ -12,11 +12,11 @@
 
 ## What This Does
 
-Ask a business question in plain English. The AI finds the right data tables, writes the SQL, executes it, and renders a chart — in seconds, with zero SQL or DAX knowledge required.
+Ask a business question in plain English — one question or many charts at once. Five AI agents detect whether you're asking for a single insight or a multi-chart dashboard, find the right data tables, write the SQL, execute it, and render charts — in seconds, with zero SQL or DAX knowledge required.
 
 Two output paths are available. **Quick Insights** delivers instant interactive Plotly visualizations directly in the browser. **Power BI Builder** generates Excel exports, DAX measures, and MCP-ready prompts for governed enterprise dashboards in Power BI Desktop.
 
-The system understands business context — period-over-period growth, YTD comparisons, assortment metrics, geographic breakdowns — and self-corrects when queries fail. Every interaction feeds a feedback loop that makes future recommendations smarter.
+The system understands business context — period-over-period growth, YTD comparisons, assortment metrics, geographic breakdowns — and self-corrects when queries fail. Every interaction feeds a feedback loop that makes future recommendations smarter. Access is password-protected so only authorised users consume API credits.
 
 ---
 
@@ -25,13 +25,13 @@ The system understands business context — period-over-period growth, YTD compa
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                         USER (Browser)                              │
-│              "What is the sales growth for May 2018?"               │
+│  "Show revenue trend for 2017, top 10 categories, and region map"   │
 └─────────────────────────┬───────────────────────────────────────────┘
                           │
                           ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │                    STREAMLIT FRONTEND                                │
-│   app/streamlit_app.py  ·  Session state  ·  Two-path routing       │
+│   app/streamlit_app.py  ·  Session state  ·  Password-protected     │
 └──────────┬───────────────────────────────────────┬──────────────────┘
            │                                       │
            ▼                                       ▼
@@ -42,14 +42,26 @@ The system understands business context — period-over-period growth, YTD compa
                           │
                           ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                       ORCHESTRATOR                                   │
+│                    AGENT 1 · QUERY DECOMPOSER                        │
+│              agents/query_decomposer.py                              │
+│   Detects single vs. multi-chart · Splits into focused questions    │
+└─────────────────────────┬───────────────────────────────────────────┘
+          "3 charts detected — processing each independently"
+                          │
+          ┌───────────────┼───────────────┐
+          │               │               │
+    Chart 1 Q       Chart 2 Q       Chart 3 Q
+          │               │               │
+          ▼               ▼               ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                    AGENT 5 · ORCHESTRATOR                            │
 │              agents/orchestrator.py                                  │
-│         Coordinates agents · Logs use cases · Routes paths          │
+│     process_multi_query() · process_query() · Logs use cases        │
 └──────┬────────────────────┬──────────────────────┬──────────────────┘
        │                    │                       │
        ▼                    ▼                       ▼
 ┌──────────────┐   ┌────────────────┐   ┌──────────────────────┐
-│   AGENT 1    │   │    AGENT 2     │   │       AGENT 3        │
+│   AGENT 2    │   │    AGENT 3     │   │       AGENT 4        │
 │   Table      │   │  SQL Generator │   │   Viz Recommender    │
 │  Recommender │   │                │   │                      │
 │              │   │ · Writes SQL   │   │ · Selects chart type │
@@ -80,8 +92,8 @@ The system understands business context — period-over-period growth, YTD compa
        ▼
 ┌──────────────────────────┐   ┌──────────────────────────────────────┐
 │    PATH A OUTPUT         │   │           PATH B OUTPUT              │
-│  · Plotly chart          │   │  · Excel export (Data + ChartConfig) │
-│  · Interactive table     │   │  · DAX measures (Claude-generated)   │
+│  · Plotly chart(s)       │   │  · Excel export (Data + ChartConfig) │
+│  · Per-chart tabs        │   │  · DAX measures (Claude-generated)   │
 │  · Excel / CSV download  │   │  · Power BI setup guide (.txt)       │
 │                          │   │  · MCP command prompts               │
 └──────────────────────────┘   └──────────────────────────────────────┘
@@ -102,13 +114,15 @@ This means:
 
 ### Agentic Pipeline
 
-Three specialised agents run in sequence, each with a focused role:
+Five specialised agents run in a coordinated pipeline. Agent 1 determines how many charts to produce; Agents 2–4 run once per chart; Agent 5 orchestrates the whole flow.
 
-| Agent | Input | Output | Claude's role |
-|-------|-------|--------|---------------|
-| Table Recommender | User question + full metadata | Ranked table list + suggested joins | Semantic matching: which tables contain the answer? |
-| SQL Generator | Question + recommended tables + schemas + domain rules | Validated, executed SQL + DataFrame | Code generation + self-correction (up to 3 retries) |
-| Viz Recommender | Question + DataFrame shape + growth viz spec | Plotly figure + chart config + DAX suggestion | Visual reasoning: what chart best answers the question? |
+| Agent | File | Input | Output | Claude's role |
+|-------|------|-------|--------|---------------|
+| **1. Query Decomposer** | `query_decomposer.py` | Raw user question | Single or list of focused chart questions | Intent detection: is this one chart or many? |
+| **2. Table Recommender** | `table_recommender.py` | Single chart question + full metadata | Ranked table list + suggested joins | Semantic matching: which tables contain the answer? |
+| **3. SQL Generator** | `sql_generator.py` | Question + recommended tables + domain rules | Validated, executed SQL + DataFrame | Code generation + self-correction (up to 3 retries) |
+| **4. Viz Recommender** | `viz_recommender.py` | Question + DataFrame shape + growth viz spec | Plotly figure + chart config + DAX suggestion | Visual reasoning: what chart best answers the question? |
+| **5. Orchestrator** | `orchestrator.py` | Question (single or multi) | Unified result dict(s) | Coordination: calls 1→2→3→4, logs use cases |
 
 ### Feedback Loop
 
@@ -245,10 +259,11 @@ ai-dashboard-generator/
 │   └── streamlit_app.py          # Full Streamlit frontend (5 pages)
 │
 ├── agents/
-│   ├── orchestrator.py           # Coordinates all agents, manages flow
-│   ├── table_recommender.py      # Agent 1: RAG-based table selection
-│   ├── sql_generator.py          # Agent 2: SQL generation + self-correction
-│   └── viz_recommender.py        # Agent 3: Chart recommendation + Plotly build
+│   ├── orchestrator.py           # Agent 5: Coordinates all agents, manages flow
+│   ├── query_decomposer.py       # Agent 1: Detects single vs. multi-chart requests
+│   ├── table_recommender.py      # Agent 2: RAG-based table selection
+│   ├── sql_generator.py          # Agent 3: SQL generation + self-correction
+│   └── viz_recommender.py        # Agent 4: Chart recommendation + Plotly build
 │
 ├── powerbi/
 │   └── export_handler.py         # Excel export, DAX generation, MCP prompts
@@ -297,6 +312,7 @@ ai-dashboard-generator/
 | Which product categories have the highest review scores? | Customer satisfaction ranking |
 | What is the assortment growth by category for 2017? | Assortment metric + YoY |
 | Which sellers have the most orders and highest revenue? | Multi-metric ranking |
+| Show monthly revenue trend for 2017, top 10 categories for 2017, and revenue by state | **Multi-chart** — Query Decomposer splits into 3 separate charts rendered in tabs |
 
 ---
 
@@ -320,7 +336,7 @@ Key upgrade path:
 | Technology | Role |
 |------------|------|
 | Python 3.11 | Core language |
-| [Anthropic Claude API](https://docs.anthropic.com/) | LLM backbone for all three agents |
+| [Anthropic Claude API](https://docs.anthropic.com/) | LLM backbone for all five agents |
 | Streamlit 1.32+ | Web frontend framework |
 | SQLite | Local analytical database |
 | Plotly | Interactive chart rendering |

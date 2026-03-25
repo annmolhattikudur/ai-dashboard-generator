@@ -7,7 +7,7 @@ The POC runs locally on a single machine:
 - **AI layer:** Claude API calls from a Python process
 - **Metadata:** JSON files on disk
 - **Frontend:** Streamlit running on localhost
-- **Auth:** None
+- **Auth:** Password-protected (`APP_PASSWORD` in `config.py`)
 - **Export:** Local file downloads + MCP prompts
 
 This is production-quality architecture in miniature. Every component has a direct enterprise equivalent.
@@ -24,7 +24,7 @@ This is production-quality architecture in miniature. Every component has a dire
 | Direct Claude API calls | **Vertex AI (Gemini) or Anthropic API via VPC** | Private networking, SLA, cost governance |
 | Streamlit on localhost | **Cloud Run + custom React frontend** | Multi-tenant, scalable, SSO-ready |
 | Local file downloads | **Power BI Service REST API** | Automated report publishing to workspaces |
-| No auth | **Google Identity Platform / Azure AD SSO** | Enterprise RBAC, audit trail |
+| `APP_PASSWORD` (shared secret) | **Google Identity Platform / Azure AD SSO** | Enterprise RBAC, per-user audit trail |
 | `use_case_log.json` | **BigQuery audit table + Firestore** | Queryable at scale, real-time |
 | Python process | **Cloud Run microservices** | Independent scaling per agent |
 | Local MCP prompts | **Power BI Remote MCP Server** | Direct API connection to Power BI Service |
@@ -118,6 +118,9 @@ Claude generates SQL with focused, high-signal context
 Frontend (Cloud Run)
     │
     ▼
+Query Decomposer Service (Cloud Run)   ← NEW: detects single vs. multi-chart
+    │
+    ▼
 Orchestrator Service (Cloud Run)
     │
     ├── Table Recommender Service (Cloud Run)
@@ -145,10 +148,11 @@ For more complex multi-step reasoning (e.g., "compare Q1 2017 vs Q1 2018 across 
 from langgraph.graph import StateGraph
 
 graph = StateGraph(DashboardState)
-graph.add_node("table_recommender", table_recommender_node)
-graph.add_node("sql_generator", sql_generator_node)
-graph.add_node("viz_recommender", viz_recommender_node)
-graph.add_node("error_handler", error_handler_node)
+graph.add_node("query_decomposer",  query_decomposer_node)   # Agent 1
+graph.add_node("table_recommender", table_recommender_node)  # Agent 2
+graph.add_node("sql_generator",     sql_generator_node)      # Agent 3
+graph.add_node("viz_recommender",   viz_recommender_node)    # Agent 4
+graph.add_node("error_handler",     error_handler_node)
 
 graph.add_conditional_edges("sql_generator", route_on_error, {
     "success": "viz_recommender",

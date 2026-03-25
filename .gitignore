@@ -1,4 +1,4 @@
-database/*.db
+# database/*.db  — tracked via Git LFS instead
 __pycache__/
 *.pyc
 .env
