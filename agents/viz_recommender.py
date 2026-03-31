@@ -133,7 +133,22 @@ Rules:
 - For KPI cards (single number result), set x_axis and y_axis to the single column name
 - Choose horizontal bars when categorical labels have more than 15 characters on average
 - IMPORTANT: if ANY result column contains the word "growth", "pct", "percent", or "change" alongside at least two numeric value columns representing two time periods — use chart_type="combo". This applies even when columns are named like dec_2016_revenue / dec_2017_revenue / growth_percentage or jan_2017_sales / jan_2018_sales / growth_pct
+- CURRENCY: This dataset is from a Brazilian marketplace. All monetary values are in Brazilian Real (BRL). Use "R$" as the currency symbol in titles and labels — NEVER use "$" or "USD". Example axis title: "Revenue (R$)" not "Revenue ($)"
 """
+
+
+# ─────────────────────────────────────────────
+# Currency helpers
+# ─────────────────────────────────────────────
+
+_MONETARY_KEYWORDS = ("revenue", "payment", "price", "freight", "aov", "cost", "value", "sales", "amount")
+
+def _is_monetary_column(col_name: str) -> bool:
+    """Check if a column name suggests monetary values."""
+    if not col_name:
+        return False
+    lower = col_name.lower()
+    return any(kw in lower for kw in _MONETARY_KEYWORDS) and "pct" not in lower and "percent" not in lower and "growth" not in lower
 
 
 # ─────────────────────────────────────────────
@@ -209,13 +224,14 @@ def _build_plotly_figure(df: pd.DataFrame, viz_config: dict) -> go.Figure:
                 period_values = [df[bar_columns[i]].iloc[0] for i in range(min(2, len(bar_columns)))]
 
                 for i, (label, val) in enumerate(zip(period_labels, period_values)):
+                    bar_text = f"R$ {val:,.2f}" if any(_is_monetary_column(c) for c in bar_columns) else f"{val:,.2f}"
                     fig.add_trace(go.Bar(
                         x=[label],
                         y=[val],
                         name=label,
                         marker_color=bar_colors[i % 2],
                         yaxis="y1",
-                        text=[f"{val:,.2f}"],
+                        text=[bar_text],
                         textposition="outside",
                     ))
 
@@ -262,12 +278,18 @@ def _build_plotly_figure(df: pd.DataFrame, viz_config: dict) -> go.Figure:
                         yaxis="y2",
                     ))
 
+            # Determine if primary y-axis is monetary
+            _combo_monetary = any(_is_monetary_column(c) for c in bar_columns)
+            _yaxis_cfg = dict(title=yaxis_title or "Revenue (R$)")
+            if _combo_monetary:
+                _yaxis_cfg["tickprefix"] = "R$ "
+
             fig.update_layout(
                 title=title,
                 barmode="group",
                 plot_bgcolor="white",
                 paper_bgcolor="white",
-                yaxis=dict(title=yaxis_title or "Revenue"),
+                yaxis=_yaxis_cfg,
                 yaxis2=dict(
                     title="Growth %",
                     overlaying="y",
@@ -281,11 +303,16 @@ def _build_plotly_figure(df: pd.DataFrame, viz_config: dict) -> go.Figure:
 
         elif chart_type == "kpi_card":
             value = df.iloc[0, 0] if not df.empty else "N/A"
+            col_name = df.columns[0] if not df.empty else ""
+            kpi_monetary = _is_monetary_column(col_name)
+            number_fmt = {"valueformat": ",.2f"}
+            if kpi_monetary:
+                number_fmt["prefix"] = "R$ "
             fig = go.Figure(go.Indicator(
                 mode="number",
                 value=float(value) if str(value).replace('.', '').replace('-', '').isdigit() else None,
                 title={"text": title},
-                number={"valueformat": ",.2f"},
+                number=number_fmt,
             ))
 
         else:  # table fallback
@@ -305,11 +332,14 @@ def _build_plotly_figure(df: pd.DataFrame, viz_config: dict) -> go.Figure:
             title_font_size=16,
             margin=dict(t=60, b=60, l=60, r=40),
         )
-        if chart_type not in ("pie", "kpi_card", "table", "heatmap"):
+        if chart_type not in ("pie", "kpi_card", "table", "heatmap", "combo"):
             fig.update_layout(
                 xaxis_title=xaxis_title,
                 yaxis_title=yaxis_title,
             )
+            # Add R$ tick prefix for monetary y-axes
+            if y and _is_monetary_column(y):
+                fig.update_layout(yaxis=dict(tickprefix="R$ "))
 
     except Exception as e:
         # Fallback: render as table
